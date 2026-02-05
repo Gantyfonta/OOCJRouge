@@ -220,7 +220,7 @@
         }
 
         .hotbar-hud { display: flex; background: rgba(0, 0, 0, 0.6); padding: 4px; border: 4px solid #1a1a1a; pointer-events: auto; }
-        .hud-slot { width: 52px; height: 52px; border: 4px solid transparent; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); position: relative; }
+        .hud-slot { width: 52px; height: 52px; border: 4px solid transparent; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); position: relative; cursor: crosshair; }
         .hud-slot.active { border-color: #fff; background: rgba(255, 255, 255, 0.25); box-shadow: inset 0 0 10px rgba(255,255,255,0.5); }
 
         #inventory-screen { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
@@ -239,6 +239,23 @@
         .block-icon { width: 34px; height: 34px; pointer-events: none; position: relative; display: flex; align-items: center; justify-content: center; }
         .item-count { position: absolute; bottom: 2px; right: 2px; font-size: 11px; color: #fff; text-shadow: 2px 2px #000; font-weight: bold; pointer-events: none; z-index: 10; }
         #held-item-cursor { position: fixed; pointer-events: none; z-index: 1000; display: none; filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.5)); }
+        
+        /* Tooltip Style */
+        #item-tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: rgba(16, 0, 16, 0.9);
+            border: 2px solid #2d0a63;
+            color: #fff;
+            padding: 6px 10px;
+            font-size: 8px;
+            z-index: 2000;
+            display: none;
+            white-space: nowrap;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            line-height: 1.2;
+        }
+
         .status-ui { position: absolute; top: 25px; left: 25px; display: flex; flex-direction: column; gap: 12px; }
         .hearts { display: flex; gap: 6px; pointer-events: none; }
         .heart { width: 22px; height: 22px; background: #ff4d4d; border: 3px solid #7a0000; box-shadow: 3px 3px 0 rgba(0,0,0,0.3); border-radius: 4px; }
@@ -276,6 +293,7 @@
         <canvas id="gameCanvas"></canvas>
         <div id="portal-overlay"></div>
         <div id="held-item-cursor"></div>
+        <div id="item-tooltip"></div>
         <div id="save-indicator">SAVING...</div>
         
         <div id="mode-selection-overlay">
@@ -309,7 +327,6 @@
             
             <div class="mc-label" style="color: #aaa; font-size: 10px; margin-bottom: 5px;">SELECT WORLD</div>
             <div class="worlds-container" id="worlds-container">
-                <!-- Save Slots -->
                 <div class="world-slot empty" id="slot-0">
                     <div class="world-info">
                         <div class="world-name">SLOT 1</div>
@@ -506,6 +523,7 @@
         const saveIndicator = document.getElementById('save-indicator');
         const pauseMenuEl = document.getElementById('pause-menu');
         const modeSelectionEl = document.getElementById('mode-selection-overlay');
+        const itemTooltipEl = document.getElementById('item-tooltip');
         
         let width, height;
         let camera = { x: 0, y: 0 };
@@ -529,7 +547,7 @@
             facing: 1,
             animTimer: 0,
             squash: 1,
-            gameMode: 'survival', // 'survival' or 'creative'
+            gameMode: 'survival', 
             isFlying: false,
             lastJumpTime: 0
         };
@@ -576,7 +594,6 @@
                     if (key === 'e') toggleInventory();
                     if (!inventoryOpen && e.key >= '1' && e.key <= '9') { activeHotbarIndex = parseInt(e.key) - 1; updateHUD(); }
                     
-                    // Toggle Flying
                     if (!inventoryOpen && (key === 'w' || key === ' ')) {
                         const now = Date.now();
                         if (player.gameMode === 'creative' && now - player.lastJumpTime < 300) {
@@ -593,7 +610,10 @@
                 const rect = canvas.getBoundingClientRect();
                 mouse.x = e.clientX - rect.left;
                 mouse.y = e.clientY - rect.top;
-                if (gameStarted) updateHeldItemCursor();
+                if (gameStarted) {
+                    updateHeldItemCursor();
+                    updateTooltip();
+                }
             });
             window.addEventListener('mousedown', e => {
                 if (!gameStarted || isPaused) return;
@@ -605,7 +625,6 @@
             requestAnimationFrame(loop);
         }
 
-        // PAUSE & QUIT LOGIC
         function togglePauseMenu() {
             if (player.dead) return;
             isPaused = !isPaused;
@@ -621,7 +640,6 @@
             updateSlotsUI();
         }
 
-        // SAVE SYSTEM LOGIC
         function updateSlotsUI() {
             for (let i = 0; i < 3; i++) {
                 const slotEl = document.getElementById(`slot-${i}`);
@@ -738,7 +756,6 @@
             setTimeout(() => { saveIndicator.style.opacity = '0'; }, 2000);
         }
 
-        // UI & RENDERING LOGIC
         function createParticles(x, y, color, count = 5) {
             for(let i=0; i<count; i++) {
                 particles.push({
@@ -783,7 +800,6 @@
             if (player.gameMode === 'creative') {
                 craftingLabel.innerText = "Item Palette";
                 invLabel.innerText = "Creative Palette (Click to take)";
-                // In creative, we don't need the crafting area at all really
                 document.querySelector('.top-section').style.display = 'none';
             } else {
                 document.querySelector('.top-section').style.display = 'flex';
@@ -799,6 +815,7 @@
                 updateHeldItemCursor();
                 saveGame();
             }
+            itemTooltipEl.style.display = 'none';
             renderInventory();
         }
 
@@ -814,7 +831,6 @@
             };
             const mainGrid = document.getElementById('main-inventory-grid');
             mainGrid.innerHTML = '';
-            // We'll dynamic expand mainGrid for creative
             for (let i = 0; i < 27; i++) {
                 const slot = document.createElement('div');
                 slot.className = 'mc-slot';
@@ -856,7 +872,6 @@
                     mainGrid.appendChild(slot);
                 });
             } else {
-                // Return to normal 27 slots if we were in creative
                 if (mainGrid.children.length !== 27) {
                     mainGrid.innerHTML = '';
                     for (let i = 0; i < 27; i++) {
@@ -985,7 +1000,7 @@
             else if (type === 'craft3') targetArray = craftingGrid3x3;
             if (!targetArray) return;
 
-            if (player.gameMode === 'creative' && type === 'main') return; // Creative "Main" grid is static palette
+            if (player.gameMode === 'creative' && type === 'main') return; 
 
             const current = targetArray[idx];
             
@@ -1096,6 +1111,52 @@
                 cursor.appendChild(createItemVisual(heldItem.id, heldItem.count)); 
             }
             else { cursor.style.display = 'none'; }
+        }
+
+        function updateTooltip() {
+            let tooltipText = "";
+            const isHoveringElement = (selector) => {
+                const el = document.elementFromPoint(mouse.x, mouse.y);
+                return el && el.closest(selector);
+            };
+
+            const inventorySlot = isHoveringElement('.mc-slot');
+            const hudSlot = isHoveringElement('.hud-slot');
+
+            if (inventorySlot) {
+                const type = inventorySlot.dataset.type;
+                const idx = parseInt(inventorySlot.dataset.idx);
+                let item = null;
+                if (type === 'main') item = mainInventory[idx];
+                else if (type === 'hotbar') item = hotbarInventory[idx];
+                else if (type === 'craft2') item = craftingGrid2x2[idx];
+                else if (type === 'craft3') item = craftingGrid3x3[idx];
+                else if (type === 'creative') {
+                    const itemId = parseInt(inventorySlot.dataset.itemId);
+                    item = { id: itemId };
+                } else if (inventorySlot.id === 'crafting-output') item = craftingOutput;
+
+                if (item) tooltipText = BLOCK_TYPES[item.id]?.name || "";
+            } else if (hudSlot) {
+                const slots = Array.from(document.querySelectorAll('.hud-slot'));
+                const idx = slots.indexOf(hudSlot);
+                const item = hotbarInventory[idx];
+                if (item) tooltipText = BLOCK_TYPES[item.id]?.name || "";
+            } else if (!inventoryOpen && !isPaused) {
+                const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
+                const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
+                const blockId = worlds[currentDimension][`${wx},${wy}`];
+                if (blockId) tooltipText = BLOCK_TYPES[blockId]?.name || "";
+            }
+
+            if (tooltipText) {
+                itemTooltipEl.innerText = tooltipText;
+                itemTooltipEl.style.display = 'block';
+                itemTooltipEl.style.left = (mouse.x + 20) + 'px';
+                itemTooltipEl.style.top = (mouse.y - 30) + 'px';
+            } else {
+                itemTooltipEl.style.display = 'none';
+            }
         }
 
         function addItemToInventory(id, count) {
@@ -1398,8 +1459,7 @@
                         if (block.hazard) { takeDamage(1); if (block.id !== 6) continue; }
                         if (block.teleport) continue; 
                         
-                        if (player.isFlying) continue; // Ghosts through blocks when flying? No, maybe better to collide. 
-                        // But standard creative allows clipping in some cases. Let's keep collision for now unless flying.
+                        if (player.isFlying) continue; 
 
                         if (axis === 'x') { if (player.vx > 0) player.x = x * TILE_SIZE - player.w; else if (player.vx < 0) player.x = (x + 1) * TILE_SIZE; player.vx = 0; }
                         else { 
