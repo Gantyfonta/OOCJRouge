@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: The Creative Update</title>
+    <title>Moinkcraft: The Alchemical Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -422,12 +422,12 @@
         const TICKS_PER_SECOND = 20;
         const TICK_TIME = 1000 / TICKS_PER_SECOND;
         
-        // Tuned for responsive movement at 20Hz
-        const GRAVITY = 1.6; 
-        const FRICTION = 0.6; 
-        const SPEED = 6.0; 
-        const SPRINT_SPEED = 10.0; 
-        const JUMP = -26; 
+        // Fluid & Physics Constants
+        const GRAVITY = 1.8; 
+        const FRICTION = 0.65; 
+        const SPEED = 8.0; 
+        const SPRINT_SPEED = 14.0; 
+        const JUMP = -32; 
         const MAX_HEALTH = 10;
         const INVULN_TIME = 15; 
         const WORLD_WIDTH = 100;
@@ -439,7 +439,7 @@
             3: { name: 'Stone', color: '#828282', stroke: '#555555', hardness: 50, tool: 'pickaxe', texture: 'stone' },
             4: { name: 'Wood', color: '#6d4c41', stroke: '#3e2723', hardness: 30, tool: 'axe' },
             5: { name: 'Leaves', color: '#2e7d32', stroke: '#1b5e20', hardness: 5 },
-            6: { name: 'Lava', color: '#ff5722', stroke: '#bf360c', hazard: true, hardness: 1000, animated: true },
+            6: { name: 'Lava', color: '#ff5722', stroke: '#bf360c', hazard: true, hardness: 9999, animated: true, fluid: true, type: 'lava' },
             7: { name: 'Cobble', color: '#616161', stroke: '#424242', hardness: 45, tool: 'pickaxe', texture: 'cobble' },
             8: { name: 'Sand', color: '#ffecb3', stroke: '#ffe082', hardness: 10, tool: 'shovel' },
             10: { name: 'Planks', color: '#d2b48c', stroke: '#8b4513', hardness: 25, tool: 'axe' },
@@ -486,7 +486,11 @@
             59: { name: 'Flint and Steel', color: '#e0e0e0', item: true, action: 'ignite' },
             60: { name: 'Nether Portal', color: '#6a1b9a', stroke: '#4a148c', hardness: 999, animated: true, teleport: true },
             61: { name: 'Soul Sand', color: '#5d4037', stroke: '#3e2723', hardness: 15, tool: 'shovel' },
-            62: { name: 'Magma', color: '#bf360c', stroke: '#ff5722', hazard: true, hardness: 40, tool: 'pickaxe', animated: true }
+            62: { name: 'Magma', color: '#bf360c', stroke: '#ff5722', hazard: true, hardness: 40, tool: 'pickaxe', animated: true },
+            63: { name: 'Water', color: 'rgba(33, 150, 243, 0.7)', stroke: '#1976d2', hardness: 9999, animated: true, fluid: true, type: 'water' },
+            64: { name: 'Bucket', color: '#9e9e9e', stroke: '#616161', item: true, type: 'bucket' },
+            65: { name: 'Water Bucket', color: '#9e9e9e', stroke: '#2196f3', item: true, type: 'bucket_water' },
+            66: { name: 'Lava Bucket', color: '#9e9e9e', stroke: '#ff5722', item: true, type: 'bucket_lava' }
         };
 
         const RECIPES = [
@@ -503,20 +507,9 @@
             { pattern: [[7, 7], [7, 15], [null, 15]], result: 21, amount: 1 },
             { pattern: [[31, 31], [31, 15], [null, 15]], result: 24, amount: 1 },
             { pattern: [[null, 32, null], [32, 15, 32], [null, 32, null]], result: 11, amount: 1 },
+            { pattern: [[31, null, 31], [null, 31, null]], result: 64, amount: 1 },
             { pattern: [[30], [15]], result: 1, amount: 1 }, 
-            { pattern: [[58, 31]], result: 59, amount: 1 },
-            { pattern: [[31, 31, 31], [31, null, 31]], result: 70, amount: 1 },
-            { pattern: [[31, null, 31], [31, 31, 31], [31, 31, 31]], result: 71, amount: 1 },
-            { pattern: [[31, 31, 31], [31, null, 31], [31, null, 31]], result: 72, amount: 1 },
-            { pattern: [[31, null, 31], [31, null, 31]], result: 73, amount: 1 },
-            { pattern: [[32, 32, 32], [32, null, 32]], result: 74, amount: 1 },
-            { pattern: [[32, null, 32], [32, 32, 32], [32, 32, 32]], result: 75, amount: 1 },
-            { pattern: [[32, 32, 32], [32, null, 32], [32, null, 32]], result: 76, amount: 1 },
-            { pattern: [[32, null, 32], [32, null, 32]], result: 77, amount: 1 },
-            { pattern: [[33, 33, 33], [33, null, 33]], result: 78, amount: 1 },
-            { pattern: [[33, null, 33], [33, 33, 33], [33, 33, 33]], result: 79, amount: 1 },
-            { pattern: [[33, 33, 33], [33, null, 33], [33, null, 33]], result: 80, amount: 1 },
-            { pattern: [[33, null, 33], [33, null, 33]], result: 81, amount: 1 }
+            { pattern: [[58, 31]], result: 59, amount: 1 }
         ];
 
         const canvas = document.getElementById('gameCanvas');
@@ -586,26 +579,14 @@
             window.addEventListener('resize', resize);
             window.addEventListener('keydown', e => {
                 const key = e.key.toLowerCase();
-                if (!gameStarted) {
-                    keys[key] = true;
-                    return;
-                }
-
-                if (e.key === 'Escape') {
-                    if (inventoryOpen) toggleInventory();
-                    else togglePauseMenu();
-                }
-
+                if (!gameStarted) { keys[key] = true; return; }
+                if (e.key === 'Escape') { if (inventoryOpen) toggleInventory(); else togglePauseMenu(); }
                 if (!isPaused) {
                     if (key === 'e') toggleInventory();
                     if (!inventoryOpen && e.key >= '1' && e.key <= '9') { activeHotbarIndex = parseInt(e.key) - 1; updateHUD(); }
-                    
                     if (!inventoryOpen && (key === 'w' || key === ' ')) {
                         const now = Date.now();
-                        if (player.gameMode === 'creative' && now - player.lastJumpTime < 300) {
-                            player.isFlying = !player.isFlying;
-                            player.vy = 0;
-                        }
+                        if (player.gameMode === 'creative' && now - player.lastJumpTime < 300) { player.isFlying = !player.isFlying; player.vy = 0; }
                         player.lastJumpTime = now;
                     }
                 }
@@ -614,12 +595,8 @@
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             window.addEventListener('mousemove', e => {
                 const rect = canvas.getBoundingClientRect();
-                mouse.x = e.clientX - rect.left;
-                mouse.y = e.clientY - rect.top;
-                if (gameStarted) {
-                    updateHeldItemCursor();
-                    updateTooltip();
-                }
+                mouse.x = e.clientX - rect.left; mouse.y = e.clientY - rect.top;
+                if (gameStarted) { updateHeldItemCursor(); updateTooltip(); }
             });
             window.addEventListener('mousedown', e => {
                 if (!gameStarted || isPaused) return;
@@ -639,10 +616,8 @@
 
         function saveAndQuit() {
             saveGame();
-            isPaused = false;
-            gameStarted = false;
+            isPaused = false; gameStarted = false;
             pauseMenuEl.style.display = 'none';
-            document.getElementById('title-screen').style.display = 'none'; // Force hide
             document.getElementById('title-screen').style.display = 'flex';
             updateSlotsUI();
         }
@@ -673,49 +648,28 @@
             if (action === 'play') {
                 const data = localStorage.getItem(`moinkcraft_world_${slot}`);
                 if (data) {
-                    activeSaveSlot = slot;
-                    loadGame(JSON.parse(data));
-                    startGame();
+                    activeSaveSlot = slot; loadGame(JSON.parse(data)); startGame();
                 } else {
-                    pendingSaveSlot = slot;
-                    modeSelectionEl.style.display = 'flex';
+                    pendingSaveSlot = slot; modeSelectionEl.style.display = 'flex';
                 }
             } else if (action === 'delete') {
-                if (confirm('DELETE WORLD FOREVER?')) {
-                    localStorage.removeItem(`moinkcraft_world_${slot}`);
-                    updateSlotsUI();
-                }
+                if (confirm('DELETE WORLD FOREVER?')) { localStorage.removeItem(`moinkcraft_world_${slot}`); updateSlotsUI(); }
             }
         }
 
-        function closeModeSelection() {
-            modeSelectionEl.style.display = 'none';
-            pendingSaveSlot = null;
-        }
+        function closeModeSelection() { modeSelectionEl.style.display = 'none'; pendingSaveSlot = null; }
 
         function confirmNewWorld(mode) {
-            activeSaveSlot = pendingSaveSlot;
-            pendingSaveSlot = null;
-            modeSelectionEl.style.display = 'none';
-            startNewWorld(mode);
-            startGame();
+            activeSaveSlot = pendingSaveSlot; pendingSaveSlot = null;
+            modeSelectionEl.style.display = 'none'; startNewWorld(mode); startGame();
         }
 
         function saveGame() {
             if (activeSaveSlot === null || player.dead) return;
             const saveData = {
-                worlds: worlds,
-                player: {
-                    x: player.x,
-                    y: player.y,
-                    health: player.health,
-                    dimension: currentDimension,
-                    gameMode: player.gameMode
-                },
-                inventory: {
-                    main: mainInventory,
-                    hotbar: hotbarInventory
-                },
+                worlds,
+                player: { x: player.x, y: player.y, health: player.health, dimension: currentDimension, gameMode: player.gameMode },
+                inventory: { main: mainInventory, hotbar: hotbarInventory },
                 timestamp: new Date().toLocaleString()
             };
             localStorage.setItem(`moinkcraft_world_${activeSaveSlot}`, JSON.stringify(saveData));
@@ -723,39 +677,25 @@
         }
 
         function loadGame(data) {
-            worlds = data.worlds;
-            player.x = data.player.x;
-            player.y = data.player.y;
-            player.health = data.player.health;
-            player.gameMode = data.player.gameMode || 'survival';
+            worlds = data.worlds; player.x = data.player.x; player.y = data.player.y;
+            player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
             currentDimension = data.player.dimension || 'overworld';
-            mainInventory = data.inventory.main;
-            hotbarInventory = data.inventory.hotbar;
-            player.isFlying = false;
-            updateHUD();
-            updateHeartsUI();
+            mainInventory = data.inventory.main; hotbarInventory = data.inventory.hotbar;
+            player.isFlying = false; updateHUD(); updateHeartsUI();
         }
 
         function startNewWorld(mode = 'survival') {
             worlds = { overworld: {}, nether: {} };
-            generateOverworld();
-            generateNether();
-            mainInventory = new Array(27).fill(null);
-            hotbarInventory = new Array(9).fill(null);
+            generateOverworld(); generateNether();
+            mainInventory = new Array(27).fill(null); hotbarInventory = new Array(9).fill(null);
             
             const startX = Math.floor(WORLD_WIDTH / 2);
             let startY = 0;
             const world = worlds.overworld;
             while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++;
-            player.x = startX * TILE_SIZE;
-            player.y = (startY - 2) * TILE_SIZE;
-            player.health = MAX_HEALTH;
-            player.gameMode = mode;
-            player.isFlying = false;
-            currentDimension = 'overworld';
-            updateHUD();
-            updateHeartsUI();
-            saveGame();
+            player.x = startX * TILE_SIZE; player.y = (startY - 2) * TILE_SIZE;
+            player.health = MAX_HEALTH; player.gameMode = mode;
+            currentDimension = 'overworld'; updateHUD(); updateHeartsUI(); saveGame();
         }
 
         function showSaveIndicator() {
@@ -766,11 +706,7 @@
         function createParticles(x, y, color, count = 5) {
             for(let i=0; i<count; i++) {
                 particles.push({
-                    x, y,
-                    vx: (Math.random() - 0.5) * 5,
-                    vy: -Math.random() * 5,
-                    color,
-                    life: 30 + Math.random() * 20
+                    x, y, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 5, color, life: 30 + Math.random() * 20
                 });
             }
         }
@@ -779,12 +715,9 @@
             const container = document.getElementById('floating-numbers');
             for(let i=0; i<15; i++) {
                 const p = document.createElement('div');
-                p.className = 'time-particle';
-                p.innerText = Math.floor(Math.random() * 12) + 1;
-                p.style.left = Math.random() * 100 + 'vw';
-                p.style.animationDelay = (Math.random() * 10) + 's';
-                p.style.fontSize = (Math.random() * 20 + 20) + 'px';
-                container.appendChild(p);
+                p.className = 'time-particle'; p.innerText = Math.floor(Math.random() * 12) + 1;
+                p.style.left = Math.random() * 100 + 'vw'; p.style.animationDelay = (Math.random() * 10) + 's';
+                p.style.fontSize = (Math.random() * 20 + 20) + 'px'; container.appendChild(p);
             }
         }
 
@@ -793,8 +726,7 @@
 
         function toggleInventory(useTable = false) {
             if (isPaused) return;
-            inventoryOpen = !inventoryOpen;
-            isUsingTable = useTable;
+            inventoryOpen = !inventoryOpen; isUsingTable = useTable;
             const screen = document.getElementById('inventory-screen');
             screen.style.display = inventoryOpen ? 'flex' : 'none';
             document.getElementById('crafting-grid-2x2').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'grid';
@@ -805,13 +737,11 @@
             const invLabel = document.getElementById('inventory-label');
             
             if (player.gameMode === 'creative') {
-                craftingLabel.innerText = "Item Palette";
-                invLabel.innerText = "Creative Palette (Click to take)";
+                craftingLabel.innerText = "Item Palette"; invLabel.innerText = "Creative Palette (Click to take)";
                 document.querySelector('.top-section').style.display = 'none';
             } else {
                 document.querySelector('.top-section').style.display = 'flex';
-                craftingLabel.innerText = isUsingTable ? 'Crafting Table' : 'Crafting';
-                invLabel.innerText = "Inventory";
+                craftingLabel.innerText = isUsingTable ? 'Crafting Table' : 'Crafting'; invLabel.innerText = "Inventory";
             }
 
             if (!inventoryOpen) {
@@ -819,40 +749,30 @@
                 returnItems(craftingGrid2x2); returnItems(craftingGrid3x3);
                 if (heldItem && player.gameMode !== 'creative') { addItemToInventory(heldItem.id, heldItem.count); heldItem = null; }
                 else if (heldItem) { heldItem = null; }
-                updateHeldItemCursor();
-                saveGame();
+                updateHeldItemCursor(); saveGame();
             }
-            itemTooltipEl.style.display = 'none';
-            renderInventory();
+            itemTooltipEl.style.display = 'none'; renderInventory();
         }
 
         function setupInventoryUI() {
             const setupSlot = (slot) => {
                 slot.addEventListener('mousedown', (e) => {
-                    const type = slot.dataset.type;
-                    const idx = parseInt(slot.dataset.idx);
-                    handleSlotClick(type, idx, e.button);
-                    e.preventDefault();
+                    const type = slot.dataset.type; const idx = parseInt(slot.dataset.idx);
+                    handleSlotClick(type, idx, e.button); e.preventDefault();
                 });
                 slot.addEventListener('contextmenu', (e) => e.preventDefault());
             };
             const mainGrid = document.getElementById('main-inventory-grid');
             mainGrid.innerHTML = '';
             for (let i = 0; i < 27; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'mc-slot';
-                slot.dataset.type = 'main'; slot.dataset.idx = i;
-                setupSlot(slot);
-                mainGrid.appendChild(slot);
+                const slot = document.createElement('div'); slot.className = 'mc-slot';
+                slot.dataset.type = 'main'; slot.dataset.idx = i; setupSlot(slot); mainGrid.appendChild(slot);
             }
             const hbGrid = document.getElementById('hotbar-inventory-grid');
             hbGrid.innerHTML = '';
             for (let i = 0; i < 9; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'mc-slot';
-                slot.dataset.type = 'hotbar'; slot.dataset.idx = i;
-                setupSlot(slot);
-                hbGrid.appendChild(slot);
+                const slot = document.createElement('div'); slot.className = 'mc-slot';
+                slot.dataset.type = 'hotbar'; slot.dataset.idx = i; setupSlot(slot); hbGrid.appendChild(slot);
             }
             document.querySelectorAll('#crafting-grid-2x2 .mc-slot').forEach(setupSlot);
             document.querySelectorAll('#crafting-grid-3x3 .mc-slot').forEach(setupSlot);
@@ -861,52 +781,27 @@
 
         function renderInventory() {
             const mainGrid = document.getElementById('main-inventory-grid');
-            
             if (player.gameMode === 'creative') {
                 mainGrid.innerHTML = '';
                 const allItemIds = Object.keys(BLOCK_TYPES);
                 allItemIds.forEach((id, i) => {
                     const slot = document.createElement('div');
-                    slot.className = 'mc-slot';
-                    slot.dataset.type = 'creative'; 
-                    slot.dataset.idx = i;
-                    slot.dataset.itemId = id;
+                    slot.className = 'mc-slot'; slot.dataset.type = 'creative'; slot.dataset.itemId = id;
                     slot.appendChild(createItemVisual(parseInt(id), 1));
-                    slot.addEventListener('mousedown', (e) => {
-                        handleSlotClick('creative', parseInt(id), e.button);
-                        e.preventDefault();
-                    });
+                    slot.addEventListener('mousedown', (e) => { handleSlotClick('creative', parseInt(id), e.button); e.preventDefault(); });
                     mainGrid.appendChild(slot);
                 });
             } else {
-                if (mainGrid.children.length !== 27) {
-                    mainGrid.innerHTML = '';
-                    for (let i = 0; i < 27; i++) {
-                        const slot = document.createElement('div');
-                        slot.className = 'mc-slot';
-                        slot.dataset.type = 'main'; slot.dataset.idx = i;
-                        slot.addEventListener('mousedown', (e) => {
-                            handleSlotClick('main', i, e.button);
-                            e.preventDefault();
-                        });
-                        mainGrid.appendChild(slot);
-                    }
-                }
                 const slots = mainGrid.querySelectorAll('.mc-slot');
                 mainInventory.forEach((item, i) => { 
-                    const slot = slots[i]; 
-                    if (!slot) return; 
-                    slot.innerHTML = ''; 
+                    const slot = slots[i]; if (!slot) return; slot.innerHTML = ''; 
                     if (item) slot.appendChild(createItemVisual(item.id, item.count)); 
                 });
             }
 
-            const hbGrid = document.getElementById('hotbar-inventory-grid');
-            const hbSlots = hbGrid.querySelectorAll('.mc-slot');
+            const hbSlots = document.getElementById('hotbar-inventory-grid').querySelectorAll('.mc-slot');
             hotbarInventory.forEach((item, i) => { 
-                const slot = hbSlots[i]; 
-                if (!slot) return; 
-                slot.innerHTML = ''; 
+                const slot = hbSlots[i]; if (!slot) return; slot.innerHTML = ''; 
                 if (item) slot.appendChild(createItemVisual(item.id, item.count)); 
             });
 
@@ -926,91 +821,57 @@
         function createItemVisual(id, count) {
             const block = BLOCK_TYPES[id];
             if (!block) return document.createElement('div');
-            const container = document.createElement('div');
-            container.className = 'block-icon';
-            
+            const container = document.createElement('div'); container.className = 'block-icon';
             const drawShape = (style) => {
-                const div = document.createElement('div');
-                Object.assign(div.style, style, { position: 'absolute' });
-                container.appendChild(div);
+                const div = document.createElement('div'); Object.assign(div.style, style, { position: 'absolute' }); container.appendChild(div);
             };
 
             if (block.type === 'ingot') {
-                drawShape({ width: '24px', height: '12px', background: block.color, border: `2px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px', boxShadow: 'inset 2px 2px 0 rgba(255,255,255,0.4)' });
+                drawShape({ width: '24px', height: '12px', background: block.color, border: `2px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px' });
             } else if (block.type === 'coal') {
-                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)', boxShadow: 'inset 2px 2px 0 rgba(255,255,255,0.1)' });
+                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)' });
             } else if (block.type === 'gem') {
-                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)', border: `2px solid ${block.stroke}`, boxShadow: 'inset 0 0 10px rgba(255,255,255,0.5)' });
-            } else if (block.type === 'dust') {
-                for(let i=0; i<6; i++) {
-                    drawShape({ width: '4px', height: '4px', background: block.color, left: (Math.random()*24)+'px', top: (Math.random()*24)+'px', borderRadius: '1px', boxShadow: '0 0 4px '+block.color });
-                }
-            } else if (block.type === 'armor') {
-                const c = block.color;
-                const s = `2px solid ${block.stroke}`;
-                if (block.part === 'helm') {
-                    drawShape({ width: '20px', height: '16px', background: c, border: s, borderRadius: '10px 10px 2px 2px' });
-                } else if (block.part === 'chest') {
-                    drawShape({ width: '24px', height: '20px', background: c, border: s, borderRadius: '4px' });
-                    drawShape({ width: '30px', height: '8px', background: c, border: s, top: '4px', borderRadius: '2px' });
-                } else if (block.part === 'legs') {
-                    drawShape({ width: '22px', height: '18px', background: c, border: s, clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 65% 100%, 65% 35%, 35% 35%, 35% 100%, 0% 100%)' });
-                } else if (block.part === 'boots') {
-                    drawShape({ width: '10px', height: '10px', background: c, border: s, left: '4px', borderRadius: '2px' });
-                    drawShape({ width: '10px', height: '10px', background: c, border: s, right: '4px', borderRadius: '2px' });
-                }
+                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)' });
+            } else if (block.type?.includes('bucket')) {
+                drawShape({ width: '22px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)', top: '10px' });
+                if (block.type === 'bucket_water') drawShape({ width: '16px', height: '8px', background: '#2196f3', top: '12px', left: '7px' });
+                if (block.type === 'bucket_lava') drawShape({ width: '16px', height: '8px', background: '#ff5722', top: '12px', left: '7px' });
             } else if (block.toolType) {
                 drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
-                if (block.toolType === 'pickaxe') drawShape({ width: '28px', height: '8px', background: block.color, border: `2px solid ${block.stroke}`, top: '4px', borderRadius: '2px' });
+                if (block.toolType === 'pickaxe') drawShape({ width: '28px', height: '8px', background: block.color, border: `2px solid ${block.stroke}`, top: '4px' });
                 else if (block.toolType === 'shovel') drawShape({ width: '14px', height: '14px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', borderRadius: '50%' });
-                else if (block.toolType === 'axe') drawShape({ width: '18px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', left: '4px', borderRadius: '2px 10px 2px 2px' });
+                else if (block.toolType === 'axe') drawShape({ width: '18px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', left: '4px' });
             } else if (id === 15) {
                 drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
             } else if (block.item) {
                 drawShape({ width: '20px', height: '20px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '50%' });
             } else {
-                drawShape({ width: '30px', height: '30px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '2px', boxShadow: 'inset 4px 4px 0 rgba(255,255,255,0.2)' });
+                drawShape({ width: '30px', height: '30px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '2px' });
                 if (block.ore) {
-                    for(let i=0; i<3; i++) {
-                        drawShape({ width: '6px', height: '6px', background: block.ore, left: (Math.random()*20)+'px', top: (Math.random()*20)+'px', borderRadius: '1px' });
-                    }
+                    for(let i=0; i<3; i++) drawShape({ width: '6px', height: '6px', background: block.ore, left: (Math.random()*20)+'px', top: (Math.random()*20)+'px' });
                 }
             }
-
             if (count > 1) { 
-                const cnt = document.createElement('div'); 
-                cnt.className = 'item-count'; 
-                cnt.innerText = count; 
-                container.appendChild(cnt); 
+                const cnt = document.createElement('div'); cnt.className = 'item-count'; cnt.innerText = count; container.appendChild(cnt); 
             }
             return container;
         }
 
         function handleSlotClick(type, idx, button) {
             if (type === 'creative') {
-                const itemId = idx;
-                const block = BLOCK_TYPES[itemId];
-                const stackSize = (block.item || block.toolType || block.type === 'armor') ? 1 : 64;
-                if (button === 0) {
-                    heldItem = { id: itemId, count: stackSize };
-                } else {
-                    heldItem = { id: itemId, count: 1 };
-                }
-                updateHeldItemCursor();
-                return;
+                const itemId = idx; const block = BLOCK_TYPES[itemId];
+                const stackSize = (block.item || block.toolType || block.type?.includes('armor') || block.type?.includes('bucket')) ? 1 : 64;
+                heldItem = { id: itemId, count: (button === 0 ? stackSize : 1) };
+                updateHeldItemCursor(); return;
             }
-
             let targetArray;
             if (type === 'main') targetArray = mainInventory;
             else if (type === 'hotbar') targetArray = hotbarInventory;
             else if (type === 'craft2') targetArray = craftingGrid2x2;
             else if (type === 'craft3') targetArray = craftingGrid3x3;
-            if (!targetArray) return;
-
-            if (player.gameMode === 'creative' && type === 'main') return; 
+            if (!targetArray || (player.gameMode === 'creative' && type === 'main')) return;
 
             const current = targetArray[idx];
-            
             if (button === 0) {
                 if (!heldItem && current) { heldItem = { ...current }; targetArray[idx] = null; }
                 else if (heldItem && !current) { targetArray[idx] = { ...heldItem }; heldItem = null; }
@@ -1023,34 +884,26 @@
                     if (!current) { targetArray[idx] = { id: heldItem.id, count: 1 }; heldItem.count--; }
                     else if (current.id === heldItem.id) { current.count++; heldItem.count--; } 
                     if (heldItem.count <= 0) heldItem = null; 
-                }
-                else if (current) { 
-                    const take = Math.ceil(current.count / 2); 
-                    heldItem = { id: current.id, count: take }; 
-                    current.count -= take; 
-                    if (current.count <= 0) targetArray[idx] = null; 
+                } else if (current) { 
+                    const take = Math.ceil(current.count / 2); heldItem = { id: current.id, count: take }; 
+                    current.count -= take; if (current.count <= 0) targetArray[idx] = null; 
                 }
             }
-            updateHeldItemCursor(); 
-            renderInventory();
+            updateHeldItemCursor(); renderInventory();
         }
 
         function handleCraftingOutputClick() {
             if (craftingOutput && activeRecipeMatch && (!heldItem || heldItem.id === craftingOutput.id)) {
                 if (!heldItem) heldItem = { ...craftingOutput }; else heldItem.count += craftingOutput.count;
                 const grid = isUsingTable ? craftingGrid3x3 : craftingGrid2x2;
-                const match = activeRecipeMatch;
-                const recipe = match.recipe;
-                const offsetX = match.offsetX;
-                const offsetY = match.offsetY;
+                const match = activeRecipeMatch; const recipe = match.recipe;
                 const gridWidth = isUsingTable ? 3 : 2;
                 for (let r = 0; r < recipe.pattern.length; r++) {
                     for (let c = 0; c < recipe.pattern[r].length; c++) {
                         const ingId = recipe.pattern[r][c];
                         if (ingId !== null) {
-                            const gridIdx = (r + offsetY) * gridWidth + (c + offsetX);
-                            grid[gridIdx].count--;
-                            if (grid[gridIdx].count <= 0) grid[gridIdx] = null;
+                            const gridIdx = (r + match.offsetY) * gridWidth + (c + match.offsetX);
+                            grid[gridIdx].count--; if (grid[gridIdx].count <= 0) grid[gridIdx] = null;
                         }
                     }
                 }
@@ -1060,89 +913,62 @@
 
         function checkRecipes() {
             const grid = isUsingTable ? craftingGrid3x3 : craftingGrid2x2;
-            const gridWidth = isUsingTable ? 3 : 2;
-            const gridHeight = isUsingTable ? 3 : 2;
+            const gridWidth = isUsingTable ? 3 : 2; const gridHeight = isUsingTable ? 3 : 2;
             let minX = gridWidth, maxX = -1, minY = gridHeight, maxY = -1;
-            let totalItemsInGrid = 0;
+            let totalItems = 0;
             for (let y = 0; y < gridHeight; y++) {
                 for (let x = 0; x < gridWidth; x++) {
                     const item = grid[y * gridWidth + x];
-                    if (item) {
-                        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-                        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-                        totalItemsInGrid++;
-                    }
+                    if (item) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); totalItems++; }
                 }
             }
-            if (totalItemsInGrid === 0) { craftingOutput = null; activeRecipeMatch = null; return; }
-            const subWidth = maxX - minX + 1;
-            const subHeight = maxY - minY + 1;
+            if (totalItems === 0) { craftingOutput = null; activeRecipeMatch = null; return; }
+            const subWidth = maxX - minX + 1; const subHeight = maxY - minY + 1;
             const subGrid = [];
             for (let y = 0; y < subHeight; y++) {
                 subGrid[y] = [];
                 for (let x = 0; x < subWidth; x++) {
-                    const item = grid[(y + minY) * gridWidth + (x + minX)];
-                    subGrid[y][x] = item ? item.id : null;
+                    const item = grid[(y + minY) * gridWidth + (x + minX)]; subGrid[y][x] = item ? item.id : null;
                 }
             }
             let bestMatch = null;
             for (const recipe of RECIPES) {
                 const p = recipe.pattern;
-                const pHeight = p.length;
-                const pWidth = p[0].length;
-                if (subWidth !== pWidth || subHeight !== pHeight) continue;
+                if (subWidth !== p[0].length || subHeight !== p.length) continue;
                 let matches = true;
-                for (let r = 0; r < pHeight; r++) {
-                    for (let c = 0; c < pWidth; c++) {
-                        if (subGrid[r][c] !== p[r][c]) { matches = false; break; }
-                    }
+                for (let r = 0; r < p.length; r++) {
+                    for (let c = 0; c < p[r].length; c++) if (subGrid[r][c] !== p[r][c]) { matches = false; break; }
                     if (!matches) break;
                 }
-                if (matches) { bestMatch = { recipe: recipe, offsetX: minX, offsetY: minY }; break; }
+                if (matches) { bestMatch = { recipe, offsetX: minX, offsetY: minY }; break; }
             }
-            if (bestMatch) {
-                craftingOutput = { id: bestMatch.recipe.result, count: bestMatch.recipe.amount };
-                activeRecipeMatch = bestMatch;
-            } else {
-                craftingOutput = null; activeRecipeMatch = null;
-            }
+            if (bestMatch) { craftingOutput = { id: bestMatch.recipe.result, count: bestMatch.recipe.amount }; activeRecipeMatch = bestMatch; } 
+            else { craftingOutput = null; activeRecipeMatch = null; }
         }
 
         function updateHeldItemCursor() {
             const cursor = document.getElementById('held-item-cursor');
             if (heldItem) { 
-                cursor.style.display = 'block'; 
-                cursor.style.left = (mouse.x + 12) + 'px'; 
-                cursor.style.top = (mouse.y + 12) + 'px'; 
-                cursor.innerHTML = ''; 
-                cursor.appendChild(createItemVisual(heldItem.id, heldItem.count)); 
-            }
-            else { cursor.style.display = 'none'; }
+                cursor.style.display = 'block'; cursor.style.left = (mouse.x + 12) + 'px'; cursor.style.top = (mouse.y + 12) + 'px'; 
+                cursor.innerHTML = ''; cursor.appendChild(createItemVisual(heldItem.id, heldItem.count)); 
+            } else cursor.style.display = 'none';
         }
 
         function updateTooltip() {
             let tooltipText = "";
-            const isHoveringElement = (selector) => {
-                const el = document.elementFromPoint(mouse.x, mouse.y);
-                return el && el.closest(selector);
-            };
+            const el = document.elementFromPoint(mouse.x, mouse.y);
+            const invSlot = el?.closest('.mc-slot');
+            const hudSlot = el?.closest('.hud-slot');
 
-            const inventorySlot = isHoveringElement('.mc-slot');
-            const hudSlot = isHoveringElement('.hud-slot');
-
-            if (inventorySlot) {
-                const type = inventorySlot.dataset.type;
-                const idx = parseInt(inventorySlot.dataset.idx);
+            if (invSlot) {
+                const type = invSlot.dataset.type; const idx = parseInt(invSlot.dataset.idx);
                 let item = null;
                 if (type === 'main') item = mainInventory[idx];
                 else if (type === 'hotbar') item = hotbarInventory[idx];
                 else if (type === 'craft2') item = craftingGrid2x2[idx];
                 else if (type === 'craft3') item = craftingGrid3x3[idx];
-                else if (type === 'creative') {
-                    const itemId = parseInt(inventorySlot.dataset.itemId);
-                    item = { id: itemId };
-                } else if (inventorySlot.id === 'crafting-output') item = craftingOutput;
-
+                else if (type === 'creative') item = { id: parseInt(invSlot.dataset.itemId) };
+                else if (invSlot.id === 'crafting-output') item = craftingOutput;
                 if (item) tooltipText = BLOCK_TYPES[item.id]?.name || "";
             } else if (hudSlot) {
                 const slots = Array.from(document.querySelectorAll('.hud-slot'));
@@ -1155,29 +981,16 @@
                 const blockId = worlds[currentDimension][`${wx},${wy}`];
                 if (blockId) tooltipText = BLOCK_TYPES[blockId]?.name || "";
             }
-
             if (tooltipText) {
-                itemTooltipEl.innerText = tooltipText;
-                itemTooltipEl.style.display = 'block';
-                itemTooltipEl.style.left = (mouse.x + 20) + 'px';
-                itemTooltipEl.style.top = (mouse.y - 30) + 'px';
-            } else {
-                itemTooltipEl.style.display = 'none';
-            }
+                itemTooltipEl.innerText = tooltipText; itemTooltipEl.style.display = 'block';
+                itemTooltipEl.style.left = (mouse.x + 20) + 'px'; itemTooltipEl.style.top = (mouse.y - 30) + 'px';
+            } else itemTooltipEl.style.display = 'none';
         }
 
         function addItemToInventory(id, count) {
             const lists = [hotbarInventory, mainInventory];
-            for (const list of lists) { 
-                for (let i = 0; i < list.length; i++) { 
-                    if (list[i] && list[i].id === id) { list[i].count += count; return true; } 
-                } 
-            }
-            for (const list of lists) { 
-                for (let i = 0; i < list.length; i++) { 
-                    if (!list[i]) { list[i] = { id, count }; return true; } 
-                } 
-            }
+            for (const list of lists) { for (let i = 0; i < list.length; i++) if (list[i] && list[i].id === id) { list[i].count += count; return true; } }
+            for (const list of lists) { for (let i = 0; i < list.length; i++) if (!list[i]) { list[i] = { id, count }; return true; } }
             return false;
         }
 
@@ -1191,19 +1004,31 @@
             
             if (mouse.rightDown) {
                 const activeItem = hotbarInventory[activeHotbarIndex];
-                if (activeItem && activeItem.id === 59) { 
-                    if (world[key] === 28) tryIgnitePortal(wx, wy);
-                    return;
+                // Bucket Interactions
+                if (activeItem && activeItem.id === 64) {
+                    if (world[key] === 63) { // Water
+                        delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
+                        addItemToInventory(65, 1); updateHUD(); return;
+                    } else if (world[key] === 6) { // Lava
+                        delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
+                        addItemToInventory(66, 1); updateHUD(); return;
+                    }
                 }
-                if (world[key]) { if (BLOCK_TYPES[world[key]].table) { toggleInventory(true); return; } }
+                // Placement Bucket logic
+                if (activeItem && (activeItem.id === 65 || activeItem.id === 66)) {
+                    if (!world[key]) {
+                        world[key] = (activeItem.id === 65 ? 63 : 6);
+                        activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
+                        addItemToInventory(64, 1); updateHUD(); return;
+                    }
+                }
+                if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; }
+                if (world[key] && BLOCK_TYPES[world[key]].table) { toggleInventory(true); return; }
                 if (activeItem && !world[key] && !BLOCK_TYPES[activeItem.id].item) {
                     const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE };
                     if (!checkOverlap(player, rect)) { 
                         world[key] = activeItem.id;
-                        if (player.gameMode !== 'creative') {
-                            activeItem.count--; 
-                            if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; 
-                        }
+                        if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; }
                         updateHUD(); 
                     }
                 }
@@ -1220,8 +1045,7 @@
                         for(let y=0; y<5; y++) if(world[`${sx},${sy+y}`] !== 28 || world[`${sx+3},${sy+y}`] !== 28) isFrame = false;
                         if(isFrame) {
                             for(let x=1; x<=2; x++) for(let y=1; y<=3; y++) world[`${sx+x},${sy+y}`] = 60;
-                            createParticles((sx+1.5)*TILE_SIZE, (sy+2)*TILE_SIZE, '#6a1b9a', 20);
-                            return;
+                            createParticles((sx+1.5)*TILE_SIZE, (sy+2)*TILE_SIZE, '#6a1b9a', 20); return;
                         }
                     }
                 }
@@ -1229,90 +1053,81 @@
         }
 
         function updateHUD() {
-            const hud = document.getElementById('hotbar-hud');
-            hud.innerHTML = '';
+            const hud = document.getElementById('hotbar-hud'); hud.innerHTML = '';
             for (let i = 0; i < 9; i++) {
-                const item = hotbarInventory[i];
-                const slot = document.createElement('div');
+                const item = hotbarInventory[i]; const slot = document.createElement('div');
                 slot.className = `hud-slot ${activeHotbarIndex === i ? 'active' : ''}`;
-                if (item) slot.appendChild(createItemVisual(item.id, item.count));
-                hud.appendChild(slot);
+                if (item) slot.appendChild(createItemVisual(item.id, item.count)); hud.appendChild(slot);
             }
-            const dimInd = document.getElementById('dim-indicator');
-            dimInd.innerText = currentDimension === 'overworld' ? 'Overworld' : 'The Nether';
-            dimInd.style.color = currentDimension === 'overworld' ? '#ffb6c1' : '#ff4d4d';
-            
-            const modeInd = document.getElementById('mode-indicator');
-            modeInd.innerText = player.gameMode === 'creative' ? 'Creative Mode' : 'Survival Mode';
-            modeInd.style.color = player.gameMode === 'creative' ? '#f1c40f' : '#aaa';
-            
+            document.getElementById('dim-indicator').innerText = currentDimension === 'overworld' ? 'Overworld' : 'The Nether';
+            document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : '#ff4d4d';
+            document.getElementById('mode-indicator').innerText = player.gameMode === 'creative' ? 'Creative Mode' : 'Survival Mode';
+            document.getElementById('mode-indicator').style.color = player.gameMode === 'creative' ? '#f1c40f' : '#aaa';
             heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex';
         }
 
         function updateHeartsUI() { 
             heartsContainer.innerHTML = ''; 
             for(let i=0; i<MAX_HEALTH; i++) { 
-                const heart = document.createElement('div'); 
-                heart.className = `heart ${i >= player.health ? 'empty' : ''}`; 
+                const heart = document.createElement('div'); heart.className = `heart ${i >= player.health ? 'empty' : ''}`; 
                 heartsContainer.appendChild(heart); 
             } 
         }
 
         function generateOverworld() {
-            const world = worlds.overworld;
-            const surfaceHeights = [];
-            const seed = Math.random() * 1000;
-            const roughness = 0.05;
-            const amplitude = 8;
-            const baseHeight = 40;
+            const world = worlds.overworld; const seed = Math.random() * 1000;
+            const seaLevel = 45;
             for (let x = 0; x < WORLD_WIDTH; x++) {
-                const surfaceY = Math.floor(Math.sin(x * roughness + seed) * amplitude + baseHeight);
-                surfaceHeights[x] = surfaceY;
-                for (let y = surfaceY; y < WORLD_HEIGHT; y++) {
-                    let type = 2; if (y === surfaceY) type = 1;
-                    if (y === WORLD_HEIGHT - 1) type = 29; 
-                    else if (y > surfaceY + 8) {
-                        type = 3; 
-                        if (y > surfaceY + 12 && Math.random() < 0.1) type = 13;
-                        if (Math.random() < 0.05) type = 57; 
-                        if (y > surfaceY + 20 && Math.random() < 0.06) type = 14;
-                        if (y > surfaceY + 30 && Math.random() < 0.05) type = 27;
-                        if (y > surfaceY + 40 && Math.random() < 0.03) type = 25;
-                        if (y > surfaceY + 50 && Math.random() < 0.02) type = 26;
-                        if (y > surfaceY + 60 && Math.random() < 0.015) type = 28;
+                const surfaceY = Math.floor(Math.sin(x * 0.05 + seed) * 8 + 40);
+                for (let y = 0; y < WORLD_HEIGHT; y++) {
+                    let type = 0;
+                    if (y === WORLD_HEIGHT - 1) type = 29;
+                    else if (y > surfaceY) {
+                        type = 2; // Dirt
+                        if (y > surfaceY + 3) type = 3; // Stone
+                        if (y > surfaceY + 12 && Math.random() < 0.1) type = 13; // Ores
+                    } else if (y >= seaLevel && !world[`${x},${y}`]) {
+                        type = 63; // Natural water (Oceans)
                     }
-                    if (y > surfaceY + 25 && y < WORLD_HEIGHT - 1 && Math.random() < 0.01) type = 6;
-                    world[`${x},${y}`] = type;
+                    if (type) world[`${x},${y}`] = type;
                 }
-            }
-            for (let x = 2; x < WORLD_WIDTH - 2; x++) {
-                if (Math.random() < 0.1) {
-                    const groundY = surfaceHeights[x];
-                    if (world[`${x},${groundY}`] === 1) {
-                        const th = 4 + Math.floor(Math.random()*2);
-                        for (let i=1; i<=th; i++) world[`${x},${groundY-i}`] = 4;
-                        for (let lx=-2; lx<=2; lx++) for (let ly=-2; ly<=0; ly++) if(!world[`${x+lx},${groundY-th+ly}`] && Math.abs(lx)+Math.abs(ly) < 4) world[`${x+lx},${groundY-th+ly}`] = 5;
+                // Place Grass (1) on top dirt blocks
+                for(let y=0; y<WORLD_HEIGHT; y++) {
+                    const k = `${x},${y}`;
+                    if(world[k] === 2 && !world[`${x},${y-1}`]) {
+                        world[k] = 1;
+                        // Spontaneous Trees
+                        if (Math.random() < 0.1) spawnTree(x, y - 1);
+                        break;
                     }
                 }
             }
         }
 
+        function spawnTree(x, y) {
+            const world = worlds.overworld;
+            const height = 4 + Math.floor(Math.random() * 2);
+            for(let i=0; i<height; i++) {
+                const logK = `${x},${y-i}`;
+                if(!world[logK]) world[logK] = 4;
+            }
+            // Leaves
+            for(let lx=-2; lx<=2; lx++) {
+                for(let ly=-2; ly<=0; ly++) {
+                    const leafK = `${x+lx},${y-height+ly}`;
+                    if(!world[leafK] && Math.abs(lx) + Math.abs(ly) < 4) world[leafK] = 5;
+                }
+            }
+        }
+
         function generateNether() {
-            const world = worlds.nether;
-            const seed = Math.random() * 2000;
+            const world = worlds.nether; const seed = Math.random() * 2000;
             for (let x = 0; x < WORLD_WIDTH; x++) {
                 for(let y=0; y<5; y++) world[`${x},${y}`] = 51;
                 for(let y=WORLD_HEIGHT-5; y<WORLD_HEIGHT; y++) world[`${x},${y}`] = 51;
                 for(let y=WORLD_HEIGHT-10; y<WORLD_HEIGHT-5; y++) world[`${x},${y}`] = 6;
                 for (let y = 10; y < WORLD_HEIGHT - 15; y++) {
-                    const noise = Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed);
-                    if (noise > 0.4) {
-                        let type = 51;
-                        if (Math.random() < 0.05) type = 61; 
-                        if (Math.random() < 0.02) type = 62; 
-                        if (Math.random() < 0.01) type = 52; 
-                        world[`${x},${y}`] = type;
-                    }
+                    if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) world[`${x},${y}`] = 51;
                 }
             }
         }
@@ -1321,123 +1136,143 @@
         
         function takeDamage(amt) { 
             if (player.gameMode === 'creative' || player.invuln > 0 || player.dead) return; 
-            player.health -= amt; 
-            player.invuln = INVULN_TIME; 
-            updateHeartsUI(); 
-            if (player.health <= 0) die(); 
-            player.vy = -15; 
+            player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); 
+            if (player.health <= 0) die(); player.vy = -18; 
         }
-        
-        function die() { 
-            player.dead = true; 
-            document.getElementById('death-screen').style.display = 'flex'; 
-            saveGame(); 
-        }
-        
+        function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; saveGame(); }
         function respawn() { 
-            player.health = MAX_HEALTH; player.dead = false; 
-            currentDimension = 'overworld'; 
+            player.health = MAX_HEALTH; player.dead = false; currentDimension = 'overworld'; 
             player.x = (WORLD_WIDTH/2) * TILE_SIZE; player.y = 0;
-            const world = worlds[currentDimension];
-            let startY = 0;
-            while(!world[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++;
-            player.y = (startY - 2) * TILE_SIZE;
-            player.isFlying = false;
-            updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; 
-            saveGame();
+            let startY = 0; while(!worlds.overworld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++;
+            player.y = (startY - 2) * TILE_SIZE; player.isFlying = false; updateHeartsUI(); updateHUD();
+            document.getElementById('death-screen').style.display = 'none'; saveGame();
         }
 
         function getMiningSpeed() {
             if (player.gameMode === 'creative') return 9999;
             const activeItem = hotbarInventory[activeHotbarIndex];
             if (!miningTarget) return 1;
-            const world = worlds[currentDimension];
-            const targetBlock = world[miningTarget.key];
-            if (!targetBlock) return 1;
-            const block = BLOCK_TYPES[targetBlock];
-            if (block.id === 29) return 0;
-            
+            const targetBlock = worlds[currentDimension][miningTarget.key];
+            if (!targetBlock || targetBlock === 6 || targetBlock === 63) return 0; // Can't mine fluids
+            const block = BLOCK_TYPES[targetBlock]; if (block.id === 29) return 0;
             let speed = 1.0; 
             if (activeItem) {
                 const tool = BLOCK_TYPES[activeItem.id];
-                if (tool && tool.toolType && block.tool === tool.toolType) {
-                    speed = 1.0 + (tool.tier * 2.5); 
-                }
+                if (tool?.toolType && block.tool === tool.toolType) speed = 1.0 + (tool.tier * 2.5); 
             }
             return speed;
         }
 
         function loop(timestamp) {
             if (!lastTimestamp) lastTimestamp = timestamp;
-            const deltaTime = timestamp - lastTimestamp;
-            lastTimestamp = timestamp;
+            const deltaTime = timestamp - lastTimestamp; lastTimestamp = timestamp;
             tickAccumulator += deltaTime;
-
-            while (tickAccumulator >= TICK_TIME) {
-                update();
-                tickAccumulator -= TICK_TIME;
-            }
-
-            draw();
-            requestAnimationFrame(loop);
+            while (tickAccumulator >= TICK_TIME) { update(); tickAccumulator -= TICK_TIME; }
+            draw(); requestAnimationFrame(loop);
         }
 
+        let fluidTimer = 0;
         function update() {
             if (!gameStarted || player.dead || inventoryOpen || isPaused) return;
             if (player.invuln > 0) player.invuln--;
-            
             const world = worlds[currentDimension];
 
-            particles = particles.filter(p => {
-                p.x += p.vx; p.y += p.vy; p.vy += 0.6; 
-                p.life--; return p.life > 0;
-            });
+            // Fluid Physics and Chemistry
+            fluidTimer++;
+            if (fluidTimer >= 6) {
+                fluidTimer = 0;
+                const fluidKeys = Object.keys(world).filter(k => BLOCK_TYPES[world[k]]?.fluid);
+                // Sort keys to update from bottom up to prevent "levitating" water
+                fluidKeys.sort((a, b) => b.split(',')[1] - a.split(',')[1]);
 
-            const px = Math.floor((player.x + player.w/2) / TILE_SIZE);
-            const py = Math.floor((player.y + player.h/2) / TILE_SIZE);
-            if (world[`${px},${py}`] === 60) {
-                teleportTimer++;
-                portalOverlay.style.opacity = teleportTimer / 20; 
-                if (teleportTimer >= 20) {
-                    currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld';
-                    teleportTimer = 0;
-                    portalOverlay.style.opacity = 0;
-                    const targetWorld = worlds[currentDimension];
-                    let found = false;
-                    for(let x=0; x<WORLD_WIDTH && !found; x++) {
-                        for(let y=0; y<WORLD_HEIGHT && !found; y++) {
-                            if(targetWorld[`${x},${y}`] === 60) {
-                                player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true;
+                for (const k of fluidKeys) {
+                    const [wx, wy] = k.split(',').map(Number);
+                    const selfType = world[k];
+                    
+                    // Downwards flow
+                    const belowKey = `${wx},${wy+1}`;
+                    const targetBelow = world[belowKey];
+
+                    // Interaction Check
+                    const checkNeighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
+                    let transformed = false;
+                    for (const [nx, ny] of checkNeighbors) {
+                        const neighborK = `${nx},${ny}`;
+                        const neighborT = world[neighborK];
+                        if (!neighborT) continue;
+
+                        // Water touches Lava
+                        if ((selfType === 63 && neighborT === 6) || (selfType === 6 && neighborT === 63)) {
+                            // If water is ABOVE lava
+                            if (selfType === 63 && neighborK === belowKey) {
+                                world[neighborK] = 28; // Lava turns to Obsidian
+                                transformed = true;
+                                break;
+                            } else if (selfType === 6 && k === `${nx},${ny+1}`) {
+                                world[k] = 28; // Lava turns to Obsidian
+                                transformed = true;
+                                break;
+                            } else {
+                                // Side touch = Cobblestone
+                                if (selfType === 63) { delete world[k]; world[k] = 7; }
+                                else { delete world[neighborK]; world[neighborK] = 7; }
+                                transformed = true;
+                                break;
                             }
                         }
                     }
+                    if (transformed) continue;
+
+                    // Normal flow logic
+                    if (wy + 1 < WORLD_HEIGHT && !targetBelow) {
+                        world[belowKey] = selfType; // Downward spread
+                    } else if (wy + 1 < WORLD_HEIGHT) {
+                        // Horizontal spread
+                        const dirs = [1, -1];
+                        for (let d of dirs) {
+                            const sideKey = `${wx+d},${wy}`;
+                            if (wx+d >= 0 && wx+d < WORLD_WIDTH && !world[sideKey]) {
+                                world[sideKey] = selfType;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
+            const px = Math.floor((player.x + player.w/2) / TILE_SIZE);
+            const py = Math.floor((player.y + player.h/2) / TILE_SIZE);
+            
+            // Dimension Teleport
+            if (world[`${px},${py}`] === 60) {
+                teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; 
+                if (teleportTimer >= 20) {
+                    currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld';
+                    teleportTimer = 0; portalOverlay.style.opacity = 0;
+                    const targetWorld = worlds[currentDimension];
+                    let found = false;
+                    for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(targetWorld[`${x},${y}`] === 60) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; }
                     if(!found) {
-                        player.x = (WORLD_WIDTH/2) * TILE_SIZE;
-                        let startY = 0;
+                        player.x = (WORLD_WIDTH/2) * TILE_SIZE; let startY = 0;
                         while(!targetWorld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++;
                         player.y = (startY - 2) * TILE_SIZE;
                     }
-                    updateHUD();
-                    saveGame();
+                    updateHUD(); saveGame();
                 }
-            } else {
-                teleportTimer = 0;
-                portalOverlay.style.opacity = 0;
-            }
+            } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
 
+            // Mining
             if (mouse.down) {
                 const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
                 const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
-                const key = `${wx},${wy}`;
-                const targetBlock = world[key];
-                if (targetBlock) {
-                    if (miningTarget && miningTarget.key === key) {
-                        miningProgress += getMiningSpeed();
-                        const block = BLOCK_TYPES[targetBlock];
+                const key = `${wx},${wy}`; const targetBlock = world[key];
+                if (targetBlock && !BLOCK_TYPES[targetBlock].fluid) {
+                    if (miningTarget?.key === key) {
+                        miningProgress += getMiningSpeed(); const block = BLOCK_TYPES[targetBlock];
                         if (Math.random() < 0.3) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1);
                         if (miningProgress >= block.hardness) { 
-                            let dropId = block.dropId || block.drop || targetBlock;
-                            if (player.gameMode !== 'creative') addItemToInventory(dropId, 1); 
+                            if (player.gameMode !== 'creative') addItemToInventory(block.dropId || block.drop || targetBlock, 1); 
                             createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8);
                             delete world[key]; updateHUD(); miningTarget = null; miningProgress = 0; 
                         }
@@ -1445,34 +1280,30 @@
                 } else { miningTarget = null; miningProgress = 0; }
             } else { miningTarget = null; miningProgress = 0; }
 
+            // Movement
             let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED;
             if (player.isFlying) curSpeed *= 1.5;
-
-            if (keys['a'] || keys['arrowleft']) { player.vx -= curSpeed; player.facing = -1; player.animTimer += 0.6; }
-            if (keys['d'] || keys['arrowright']) { player.vx += curSpeed; player.facing = 1; player.animTimer += 0.6; }
-            player.vx *= FRICTION; 
-            player.x += player.vx; resolveCollision('x');
-
-            if (player.isFlying) {
-                if (keys['w'] || keys[' ']) player.vy = -18;
-                else if (keys['s'] || keys['shift']) player.vy = 18;
-                else player.vy *= 0.5;
-            } else {
-                if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { 
-                    player.vy = JUMP; 
-                    player.grounded = false; 
-                    player.squash = 1.3; 
-                }
-                player.vy += GRAVITY;
+            const inFluid = BLOCK_TYPES[world[`${px},${py}`]]?.fluid;
+            if (inFluid) { 
+                curSpeed *= 0.4; 
+                if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; 
+                if (world[`${px},${py}`] === 6) takeDamage(1.5);
             }
 
-            player.y += player.vy; 
-            player.squash += (1 - player.squash) * 0.45; 
-            
-            player.grounded = false;
+            if (keys['a'] || keys['arrowleft']) { player.vx -= curSpeed; player.facing = -1; player.animTimer += 0.8; }
+            if (keys['d'] || keys['arrowright']) { player.vx += curSpeed; player.facing = 1; player.animTimer += 0.8; }
+            player.vx *= FRICTION; player.x += player.vx; resolveCollision('x');
+
+            if (!player.isFlying && !inFluid) {
+                if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; player.squash = 1.3; }
+                player.vy += GRAVITY;
+            } else if (player.isFlying) {
+                if (keys['w'] || keys[' ']) player.vy = -20; else if (keys['s'] || keys['shift']) player.vy = 20; else player.vy *= 0.5;
+            }
+            player.y += player.vy; player.squash += (1 - player.squash) * 0.45; player.grounded = false;
             if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y');
             
-            camera.x += (player.x - width/2 - camera.x) * 0.3; camera.y += (player.y - height/2 - camera.y) * 0.3;
+            camera.x += (player.x - width/2 - camera.x) * 0.35; camera.y += (player.y - height/2 - camera.y) * 0.35;
             document.getElementById('coords').innerText = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${Math.floor(player.y/TILE_SIZE)}`;
         }
 
@@ -1485,72 +1316,57 @@
                     const type = world[`${x},${y}`];
                     if (type) {
                         const block = BLOCK_TYPES[type]; 
-                        if (block.hazard) { takeDamage(1); if (block.id !== 6) continue; }
-                        if (block.teleport) continue; 
-                        
+                        if (block.hazard) { takeDamage(1); if (type === 6) continue; }
+                        if (block.teleport || block.fluid) continue; 
                         if (player.isFlying) continue; 
-
                         if (axis === 'x') { if (player.vx > 0) player.x = x * TILE_SIZE - player.w; else if (player.vx < 0) player.x = (x + 1) * TILE_SIZE; player.vx = 0; }
-                        else { 
-                            if (player.vy > 0) { 
-                                if (!player.grounded) player.squash = 0.7;
-                                player.y = y * TILE_SIZE - player.h; player.grounded = true; 
-                            } else if (player.vy < 0) { player.y = (y + 1) * TILE_SIZE; } player.vy = 0; 
-                        }
+                        else { if (player.vy > 0) { if (!player.grounded) player.squash = 0.7; player.y = y * TILE_SIZE - player.h; player.grounded = true; } 
+                               else if (player.vy < 0) { player.y = (y + 1) * TILE_SIZE; } player.vy = 0; }
                     }
                 }
             }
         }
 
         function drawBlock(x, y, type) {
-            const b = BLOCK_TYPES[type];
-            if(!b) return;
-            const tx = x * TILE_SIZE;
-            const ty = y * TILE_SIZE;
-            const time = Date.now() / 300;
-
+            const b = BLOCK_TYPES[type]; if(!b) return;
+            const tx = x * TILE_SIZE; const ty = y * TILE_SIZE; const time = Date.now() / 300;
             ctx.fillStyle = b.color;
             if (b.animated) {
                 if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`;
-                if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`;
-                if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`;
+                else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`;
+                else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`;
+                else if (type === 63) ctx.fillStyle = `rgba(33, 150, 243, ${0.6 + Math.sin(time + x) * 0.2})`;
             }
-            ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            
+            // Draw fluid block with special handling for visibility
+            if (b.fluid) {
+                ctx.fillRect(tx, ty + 5, TILE_SIZE, TILE_SIZE - 5); // Fluid usually doesn't fill the top pixel
+                ctx.fillStyle = (type === 63 ? '#1976d2' : '#bf360c');
+                ctx.fillRect(tx, ty + 5 + Math.sin(time + x) * 2, TILE_SIZE, 2);
+            } else {
+                ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            }
 
             if (type === 1) { 
-                ctx.fillStyle = b.topColor;
-                ctx.fillRect(tx, ty, TILE_SIZE, 8);
+                ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, TILE_SIZE, 8);
                 ctx.fillRect(tx, ty+8, 4, 4); ctx.fillRect(tx+12, ty+8, 8, 4); ctx.fillRect(tx+28, ty+8, 6, 4);
-            } else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack') {
-                ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                ctx.fillRect(tx+4, ty+4, 8, 8); ctx.fillRect(tx+20, ty+18, 12, 12);
-                ctx.fillStyle = 'rgba(255,255,255,0.05)';
-                ctx.fillRect(tx+25, ty+5, 6, 6); ctx.fillRect(tx+8, ty+25, 10, 10);
+            } else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian') {
+                ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(tx+4, ty+4, 8, 8); ctx.fillRect(tx+20, ty+18, 12, 12);
+                ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25, ty+5, 6, 6); ctx.fillRect(tx+8, ty+25, 10, 10);
             }
-
             if (b.ore) {
-                ctx.fillStyle = b.ore;
-                ctx.fillRect(tx+6, ty+8, 6, 6); ctx.fillRect(tx+24, ty+14, 8, 8); ctx.fillRect(tx+10, ty+26, 6, 6);
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                ctx.fillRect(tx+6, ty+8, 2, 2); ctx.fillRect(tx+24, ty+14, 3, 3);
+                ctx.fillStyle = b.ore; ctx.fillRect(tx+6, ty+8, 6, 6); ctx.fillRect(tx+24, ty+14, 8, 8); ctx.fillRect(tx+10, ty+26, 6, 6);
             }
-
             if (type === 11) { 
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.arc(tx + TILE_SIZE/2, ty + TILE_SIZE/2, TILE_SIZE/2.5, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(tx + TILE_SIZE/2, ty + TILE_SIZE/2);
-                const angle = time;
-                ctx.lineTo(tx + TILE_SIZE/2 + Math.cos(angle)*10, ty + TILE_SIZE/2 + Math.sin(angle)*10);
-                ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + TILE_SIZE/2, ty + TILE_SIZE/2, TILE_SIZE/2.5, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(tx + TILE_SIZE/2, ty + TILE_SIZE/2);
+                ctx.lineTo(tx + TILE_SIZE/2 + Math.cos(time)*10, ty + TILE_SIZE/2 + Math.sin(time)*10); ctx.stroke();
             }
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2;
-            ctx.strokeRect(tx+1, ty+1, TILE_SIZE-2, TILE_SIZE-2);
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
-            
-            if (miningTarget && miningTarget.wx === x && miningTarget.wy === y) {
+            if (!b.fluid) {
+              ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2; ctx.strokeRect(tx+1, ty+1, TILE_SIZE-2, TILE_SIZE-2);
+              ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            }
+            if (miningTarget?.wx === x && miningTarget?.wy === y) {
                 const stage = Math.floor((miningProgress / b.hardness) * 5);
                 if (stage > 0) {
                     ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
@@ -1563,62 +1379,24 @@
         }
 
         function draw() {
-            const bgColor = currentDimension === 'overworld' ? '#4a90e2' : '#1a0505';
-            ctx.fillStyle = bgColor; ctx.fillRect(0, 0, width, height);
-            
+            ctx.fillStyle = currentDimension === 'overworld' ? '#4a90e2' : '#1a0505'; ctx.fillRect(0, 0, width, height);
             ctx.save(); ctx.translate(-camera.x, -camera.y);
-            
             const world = worlds[currentDimension];
             if (world) {
                 const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1);
                 const v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1);
-
-                for (let x = v1; x <= v2; x++) {
-                    for (let y = v3; y <= v4; y++) {
-                        const type = world[`${x},${y}`];
-                        if (type) drawBlock(x, y, type);
-                    }
-                }
+                for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]);
             }
-
-            particles.forEach(p => {
-                ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50;
-                ctx.fillRect(p.x, p.y, 6, 6);
-            });
+            particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50; ctx.fillRect(p.x, p.y, 6, 6); });
             ctx.globalAlpha = 1;
-
             if (!player.dead && player.invuln % 6 < 3) {
-                ctx.save(); 
-                ctx.translate(player.x + player.w/2, player.y + player.h);
-                ctx.scale(player.facing, player.squash);
-                ctx.translate(-player.w/2, -player.h);
-
-                ctx.fillStyle = '#ffb6c1';
-                ctx.fillRect(0, 4, player.w, player.h - 10);
-                ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2;
-                ctx.strokeRect(0, 4, player.w, player.h - 10);
-
-                ctx.fillStyle = '#ffb6c1';
-                ctx.fillRect(4, player.h - 8, 8, 8 + (player.grounded ? 0 : 2));
-                ctx.fillRect(player.w - 12, player.h - 8, 8, 8 - (player.grounded ? 0 : 2));
-                
-                ctx.fillStyle = '#ff69b4';
-                ctx.fillRect(player.w - 6, 12, 10, 10);
-                ctx.fillStyle = '#c71585';
-                ctx.fillRect(player.w + 1, 15, 2, 2); ctx.fillRect(player.w + 1, 19, 2, 2);
-
-                ctx.fillStyle = '#000';
-                ctx.fillRect(player.w - 10, 8, 4, 4);
-
-                ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(0, 10); ctx.quadraticCurveTo(-10, 5, -5, 0); ctx.stroke();
-
-                if (player.isFlying) {
-                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                    ctx.fillRect(-10, 10, 10, 5);
-                    ctx.fillRect(player.w, 10, 10, 5);
-                }
-
+                ctx.save(); ctx.translate(player.x + player.w/2, player.y + player.h); ctx.scale(player.facing, player.squash); ctx.translate(-player.w/2, -player.h);
+                ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, player.w, player.h - 10);
+                ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, player.w, player.h - 10);
+                ctx.fillRect(4, player.h - 8, 8, 8); ctx.fillRect(player.w - 12, player.h - 8, 8, 8);
+                ctx.fillStyle = '#ff69b4'; ctx.fillRect(player.w - 6, 12, 10, 10);
+                ctx.fillStyle = '#000'; ctx.fillRect(player.w - 10, 8, 4, 4);
+                if (player.isFlying) { ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(-10, 10, 10, 5); ctx.fillRect(player.w, 10, 10, 5); }
                 ctx.restore();
             }
             ctx.restore();
