@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: The Nether Update</title>
+    <title>Moinkcraft: The Save Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -55,7 +55,19 @@
             z-index: 200;
             text-align: center;
             padding: 20px;
-            overflow: hidden;
+            overflow-y: auto;
+        }
+
+        #pause-menu {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 150;
+            text-align: center;
         }
 
         .floating-numbers {
@@ -81,30 +93,30 @@
 
         .hero-scene {
             position: relative;
-            width: 200px;
-            height: 250px;
-            margin-bottom: 40px;
+            width: 160px;
+            height: 180px;
+            margin-bottom: 20px;
             z-index: 10;
         }
 
         .title-clock {
             position: absolute;
-            bottom: 20px;
+            bottom: 10px;
             left: 50%;
             transform: translateX(-50%);
-            width: 120px;
-            height: 120px;
+            width: 80px;
+            height: 80px;
             background: #f1c40f;
-            border: 8px solid #b8860b;
+            border: 6px solid #b8860b;
             border-radius: 50%;
-            box-shadow: 0 10px 0 #8b6b00, 0 20px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 6px 0 #8b6b00, 0 10px 20px rgba(0,0,0,0.5);
         }
 
         .title-clock::before {
             content: '';
             position: absolute;
             top: 50%; left: 50%;
-            width: 4px; height: 40px;
+            width: 3px; height: 25px;
             background: #333;
             transform-origin: bottom center;
             transform: translate(-50%, -100%) rotate(0deg);
@@ -118,32 +130,31 @@
 
         .title-pig {
             position: absolute;
-            width: 70px;
-            height: 55px;
+            width: 50px;
+            height: 40px;
             background: #ffb6c1;
-            bottom: 140px;
+            bottom: 95px;
             left: 50%;
-            margin-left: -35px;
-            border-bottom: 6px solid #ff69b4;
+            margin-left: -25px;
+            border-bottom: 4px solid #ff69b4;
             border-radius: 4px;
             animation: pigJump 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
         }
 
-        /* Detailed Pig Parts */
-        .title-pig::before { content: ''; position: absolute; right: -8px; top: 25px; width: 14px; height: 18px; background: #ff69b4; border-right: 3px solid #c71585; border-radius: 2px; }
-        .title-pig::after { content: ''; position: absolute; right: 14px; top: 15px; width: 8px; height: 8px; background: #000; box-shadow: -25px 0 0 #000; border-radius: 1px; }
+        .title-pig::before { content: ''; position: absolute; right: -6px; top: 18px; width: 10px; height: 14px; background: #ff69b4; border-right: 2px solid #c71585; border-radius: 2px; }
+        .title-pig::after { content: ''; position: absolute; right: 10px; top: 10px; width: 6px; height: 6px; background: #000; box-shadow: -18px 0 0 #000; border-radius: 1px; }
 
         @keyframes pigJump {
             0%, 100% { transform: translateY(0) scaleY(1); }
-            50% { transform: translateY(-120px) scaleY(1.1); }
-            95% { transform: translateY(8px) scaleY(0.75); }
+            50% { transform: translateY(-80px) scaleY(1.1); }
+            95% { transform: translateY(6px) scaleY(0.75); }
         }
 
         .game-title {
-            font-size: 36px;
+            font-size: 28px;
             color: #ffb6c1;
-            text-shadow: 4px 4px 0px #c71585, 8px 8px 0px rgba(0,0,0,0.4);
-            margin-bottom: 30px;
+            text-shadow: 4px 4px 0px #c71585, 6px 6px 0px rgba(0,0,0,0.4);
+            margin-bottom: 20px;
             letter-spacing: -2px;
             z-index: 10;
             position: relative;
@@ -151,20 +162,38 @@
 
         .game-title span { color: #f1c40f; text-shadow: 4px 4px 0px #b8860b; }
 
-        .instructions {
-            margin-top: 30px;
-            font-size: 8px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            line-height: 2;
-            text-align: center;
-            border: 4px solid #444;
-            border-radius: 8px;
-            max-width: 360px;
-            color: #ddd;
+        .worlds-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 400px;
             z-index: 10;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            padding: 10px;
         }
+
+        .world-slot {
+            background: #444;
+            border: 4px solid;
+            border-color: #666 #222 #222 #666;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .world-slot.empty { opacity: 0.7; }
+
+        .world-info { text-align: left; flex: 1; }
+        .world-name { font-size: 10px; color: #fff; margin-bottom: 6px; }
+        .world-meta { font-size: 7px; color: #aaa; }
+
+        .slot-actions { display: flex; gap: 8px; }
+
+        .btn-mini { padding: 8px; font-size: 8px; background: #5b8a3e; border: 3px solid; border-color: #92c47c #2d451f #2d451f #92c47c; color: #fff; cursor: pointer; }
+        .btn-mini.red { background: #b71c1c; border-color: #ef5350 #7f0000 #7f0000 #ef5350; }
+        .btn-mini:hover { filter: brightness(1.2); }
 
         .hud-anchor {
             position: absolute;
@@ -195,9 +224,8 @@
         .crafting-grid-2x2 { display: grid; grid-template-columns: repeat(2, 48px); gap: 4px; }
         .crafting-grid-3x3 { display: grid; grid-template-columns: repeat(3, 48px); gap: 4px; }
         .arrow-right { width: 34px; height: 24px; background: #444; clip-path: polygon(0% 20%, 60% 20%, 60% 0%, 100% 50%, 60% 100%, 60% 80%, 0% 80%); }
-        .block-icon { width: 34px; height: 34px; pointer-events: none; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .block-icon { width: 34px; height: 34px; pointer-events: none; position: relative; display: flex; align-items: center; justify-content: center; }
         .item-count { position: absolute; bottom: 2px; right: 2px; font-size: 11px; color: #fff; text-shadow: 2px 2px #000; font-weight: bold; pointer-events: none; z-index: 10; }
-        .tool-stick { position: absolute; width: 4px; height: 24px; background: #5c3b1e; transform: rotate(-45deg); box-shadow: 1px 1px 1px rgba(0,0,0,0.3); }
         #held-item-cursor { position: fixed; pointer-events: none; z-index: 1000; display: none; filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.5)); }
         .status-ui { position: absolute; top: 25px; left: 25px; display: flex; flex-direction: column; gap: 12px; }
         .hearts { display: flex; gap: 6px; pointer-events: none; }
@@ -206,7 +234,7 @@
         #death-screen { position: absolute; inset: 0; background: rgba(30,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 101; }
         .btn { margin-top: 15px; padding: 15px 30px; background: #5b8a3e; border: 6px solid; border-color: #92c47c #2d451f #2d451f #92c47c; color: #fff; cursor: pointer; font-size: 12px; pointer-events: auto; text-align: center; box-shadow: 6px 6px 0 rgba(0,0,0,0.4); z-index: 10; transition: transform 0.1s; }
         .btn:hover { background: #6da34a; transform: scale(1.05); }
-        .btn:active { transform: translateY(3px); box-shadow: 3px 3px 0 rgba(0,0,0,0.4); }
+        .btn.grey { background: #888; border-color: #bbb #444 #444 #bbb; }
         #portal-overlay {
             position: absolute;
             inset: 0;
@@ -216,6 +244,18 @@
             pointer-events: none;
             transition: opacity 1s;
         }
+        #save-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            font-size: 8px;
+            color: #76b052;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -223,6 +263,14 @@
         <canvas id="gameCanvas"></canvas>
         <div id="portal-overlay"></div>
         <div id="held-item-cursor"></div>
+        <div id="save-indicator">SAVING...</div>
+        
+        <div id="pause-menu">
+            <h2 style="font-size: 24px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">GAME PAUSED</h2>
+            <div class="btn" onclick="togglePauseMenu()">RESUME</div>
+            <div class="btn grey" onclick="saveAndQuit()">SAVE AND QUIT</div>
+        </div>
+
         <div id="title-screen">
             <div class="floating-numbers" id="floating-numbers"></div>
             <div class="hero-scene">
@@ -230,14 +278,40 @@
                 <div class="title-clock"></div>
             </div>
             <h1 class="game-title">MOINK <span>O'CLOCK</span></h1>
-            <div class="btn" onclick="startGame()" style="font-size: 16px;">START JOURNEY</div>
-            <div class="instructions">
-                WASD/Arrows: Move & Jump<br>
-                SHIFT: Sprint | E: Inventory<br>
-                L-CLICK: Mine | R-CLICK: Use/Place<br>
-                Build a <span>Portal</span> and Jump on the <span>Clock</span>!
+            
+            <div class="mc-label" style="color: #aaa; font-size: 10px; margin-bottom: 5px;">SELECT WORLD</div>
+            <div class="worlds-container" id="worlds-container">
+                <!-- Save Slots -->
+                <div class="world-slot empty" id="slot-0">
+                    <div class="world-info">
+                        <div class="world-name">SLOT 1</div>
+                        <div class="world-meta">EMPTY WORLD</div>
+                    </div>
+                    <div class="slot-actions">
+                        <button class="btn-mini" onclick="handleSlotAction(0, 'play')">NEW</button>
+                    </div>
+                </div>
+                <div class="world-slot empty" id="slot-1">
+                    <div class="world-info">
+                        <div class="world-name">SLOT 2</div>
+                        <div class="world-meta">EMPTY WORLD</div>
+                    </div>
+                    <div class="slot-actions">
+                        <button class="btn-mini" onclick="handleSlotAction(1, 'play')">NEW</button>
+                    </div>
+                </div>
+                <div class="world-slot empty" id="slot-2">
+                    <div class="world-info">
+                        <div class="world-name">SLOT 3</div>
+                        <div class="world-meta">EMPTY WORLD</div>
+                    </div>
+                    <div class="slot-actions">
+                        <button class="btn-mini" onclick="handleSlotAction(2, 'play')">NEW</button>
+                    </div>
+                </div>
             </div>
-            <div style="margin-top: 20px; font-size: 8px; color: #777;">PROTOTYPE v2.5 - HD TEXTURES</div>
+
+            <div style="font-size: 6px; color: #555; margin-top: 20px;">ESC: PAUSE | WASD: MOVE | SHIFT: SPRINT | E: INV</div>
         </div>
         <div class="ui-overlay">
             <div class="status-ui">
@@ -254,7 +328,6 @@
                 <div class="top-section">
                     <div id="pig-preview" style="width: 100px; height: 120px; background: #8b8b8b; border: 4px solid #373737; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
                         <span style="font-size: 8px; color: #444; font-weight: bold;">PIGGY</span>
-                        <!-- Mini Pig Preview -->
                         <div style="position: absolute; width: 40px; height: 30px; background: #ffb6c1; border: 2px solid #ff69b4; border-radius: 2px;">
                            <div style="position: absolute; right: 2px; top: 4px; width: 4px; height: 4px; background: #000;"></div>
                         </div>
@@ -337,12 +410,26 @@
             24: { name: 'Iron Axe', color: '#e0e0e0', toolType: 'axe', tier: 3, item: true },
             25: { name: 'Gold Ore', color: '#828282', stroke: '#555555', hardness: 80, ore: '#ffeb3b', tool: 'pickaxe', drop: 32 },
             26: { name: 'Diamond Ore', color: '#828282', stroke: '#555555', hardness: 150, ore: '#80deea', tool: 'pickaxe', drop: 33 },
+            27: { name: 'Redstone Ore', color: '#828282', stroke: '#555555', hardness: 70, ore: '#ff1744', tool: 'pickaxe', drop: 34 },
             28: { name: 'Obsidian', color: '#212121', stroke: '#1a1a1a', hardness: 600, tool: 'pickaxe', texture: 'obsidian' },
             29: { name: 'Bedrock', color: '#1a1a1a', stroke: '#000000', hardness: 999999 },
-            30: { name: 'Coal', color: '#212121', item: true },
-            31: { name: 'Iron Ingot', color: '#f5f5f5', item: true },
-            32: { name: 'Gold Ingot', color: '#fff176', item: true },
-            33: { name: 'Diamond', color: '#00e5ff', item: true },
+            30: { name: 'Coal', color: '#212121', item: true, type: 'coal' },
+            31: { name: 'Iron Ingot', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'ingot' },
+            32: { name: 'Gold Ingot', color: '#fff176', stroke: '#fbc02d', item: true, type: 'ingot' },
+            33: { name: 'Diamond', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'gem' },
+            34: { name: 'Redstone Dust', color: '#ff1744', item: true, type: 'dust' },
+            70: { name: 'Iron Helmet', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'helm' },
+            71: { name: 'Iron Chestplate', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'chest' },
+            72: { name: 'Iron Leggings', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'legs' },
+            73: { name: 'Iron Boots', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'boots' },
+            74: { name: 'Gold Helmet', color: '#fff176', stroke: '#fbc02d', item: true, type: 'armor', part: 'helm' },
+            75: { name: 'Gold Chestplate', color: '#fff176', stroke: '#fbc02d', item: true, type: 'armor', part: 'chest' },
+            76: { name: 'Gold Leggings', color: '#fff176', stroke: '#fbc02d', item: true, type: 'armor', part: 'legs' },
+            77: { name: 'Gold Boots', color: '#fff176', stroke: '#fbc02d', item: true, type: 'armor', part: 'boots' },
+            78: { name: 'Diamond Helmet', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'helm' },
+            79: { name: 'Diamond Chestplate', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'chest' },
+            80: { name: 'Diamond Leggings', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'legs' },
+            81: { name: 'Diamond Boots', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'boots' },
             51: { name: 'Netherrack', color: '#b71c1c', stroke: '#7f0000', hardness: 15, tool: 'pickaxe', texture: 'netherrack' },
             52: { name: 'Glowstone', color: '#fff59d', stroke: '#fbc02d', hardness: 10, animated: true },
             57: { name: 'Gravel', color: '#bdbdbd', stroke: '#9e9e9e', hardness: 10, tool: 'shovel', dropChance: 0.1, dropId: 58 },
@@ -368,21 +455,35 @@
             { pattern: [[31, 31], [31, 15], [null, 15]], result: 24, amount: 1 },
             { pattern: [[null, 32, null], [32, 15, 32], [null, 32, null]], result: 11, amount: 1 },
             { pattern: [[30], [15]], result: 1, amount: 1 }, 
-            { pattern: [[58, 31]], result: 59, amount: 1 } 
+            { pattern: [[58, 31]], result: 59, amount: 1 },
+            { pattern: [[31, 31, 31], [31, null, 31]], result: 70, amount: 1 },
+            { pattern: [[31, null, 31], [31, 31, 31], [31, 31, 31]], result: 71, amount: 1 },
+            { pattern: [[31, 31, 31], [31, null, 31], [31, null, 31]], result: 72, amount: 1 },
+            { pattern: [[31, null, 31], [31, null, 31]], result: 73, amount: 1 },
+            { pattern: [[32, 32, 32], [32, null, 32]], result: 74, amount: 1 },
+            { pattern: [[32, null, 32], [32, 32, 32], [32, 32, 32]], result: 75, amount: 1 },
+            { pattern: [[32, 32, 32], [32, null, 32], [32, null, 32]], result: 76, amount: 1 },
+            { pattern: [[32, null, 32], [32, null, 32]], result: 77, amount: 1 },
+            { pattern: [[33, 33, 33], [33, null, 33]], result: 78, amount: 1 },
+            { pattern: [[33, null, 33], [33, 33, 33], [33, 33, 33]], result: 79, amount: 1 },
+            { pattern: [[33, 33, 33], [33, null, 33], [33, null, 33]], result: 80, amount: 1 },
+            { pattern: [[33, null, 33], [33, null, 33]], result: 81, amount: 1 }
         ];
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const heartsContainer = document.getElementById('hearts-container');
         const portalOverlay = document.getElementById('portal-overlay');
+        const saveIndicator = document.getElementById('save-indicator');
+        const pauseMenuEl = document.getElementById('pause-menu');
         
         let width, height;
         let camera = { x: 0, y: 0 };
         let currentDimension = 'overworld';
         let worlds = { overworld: {}, nether: {} };
         let teleportTimer = 0;
+        let activeSaveSlot = null;
         
-        // Detailed Player State
         let player = { 
             x: (WORLD_WIDTH / 2) * TILE_SIZE, 
             y: 0, 
@@ -412,6 +513,7 @@
         let miningProgress = 0;
         let activeHotbarIndex = 0; 
         let inventoryOpen = false;
+        let isPaused = false;
         let gameStarted = false;
         let keys = {};
         let mouse = { x: 0, y: 0, down: false, rightDown: false };
@@ -419,26 +521,24 @@
 
         function init() {
             resize();
-            generateOverworld();
-            generateNether();
+            updateSlotsUI();
             setupInventoryUI();
-            updateHUD();
-            updateHeartsUI();
             setupTitleParticles();
-            
-            const startX = Math.floor(WORLD_WIDTH / 2);
-            let startY = 0;
-            const world = worlds[currentDimension];
-            while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++;
-            player.x = startX * TILE_SIZE;
-            player.y = (startY - 2) * TILE_SIZE;
 
             window.addEventListener('resize', resize);
             window.addEventListener('keydown', e => {
                 keys[e.key.toLowerCase()] = true;
                 if (!gameStarted) return;
-                if (e.key === 'e') toggleInventory();
-                if (!inventoryOpen && e.key >= '1' && e.key <= '9') { activeHotbarIndex = parseInt(e.key) - 1; updateHUD(); }
+                
+                if (e.key === 'Escape') {
+                    if (inventoryOpen) toggleInventory();
+                    else togglePauseMenu();
+                }
+
+                if (!isPaused) {
+                    if (e.key === 'e') toggleInventory();
+                    if (!inventoryOpen && e.key >= '1' && e.key <= '9') { activeHotbarIndex = parseInt(e.key) - 1; updateHUD(); }
+                }
             });
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             window.addEventListener('mousemove', e => {
@@ -448,7 +548,7 @@
                 if (gameStarted) updateHeldItemCursor();
             });
             window.addEventListener('mousedown', e => {
-                if (!gameStarted) return;
+                if (!gameStarted || isPaused) return;
                 if (e.button === 0) mouse.down = true;
                 if (e.button === 2) { mouse.rightDown = true; if (!inventoryOpen) handleWorldInteraction(); }
             });
@@ -457,6 +557,121 @@
             requestAnimationFrame(loop);
         }
 
+        // PAUSE & QUIT LOGIC
+        function togglePauseMenu() {
+            if (player.dead) return;
+            isPaused = !isPaused;
+            pauseMenuEl.style.display = isPaused ? 'flex' : 'none';
+        }
+
+        function saveAndQuit() {
+            saveGame();
+            isPaused = false;
+            gameStarted = false;
+            pauseMenuEl.style.display = 'none';
+            document.getElementById('title-screen').style.display = 'flex';
+            updateSlotsUI();
+        }
+
+        // SAVE SYSTEM LOGIC
+        function updateSlotsUI() {
+            for (let i = 0; i < 3; i++) {
+                const slotEl = document.getElementById(`slot-${i}`);
+                const data = localStorage.getItem(`moinkcraft_world_${i}`);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    slotEl.className = 'world-slot';
+                    slotEl.querySelector('.world-meta').innerText = `SAVED: ${parsed.timestamp || 'N/A'}`;
+                    slotEl.querySelector('.slot-actions').innerHTML = `
+                        <button class="btn-mini" onclick="handleSlotAction(${i}, 'play')">PLAY</button>
+                        <button class="btn-mini red" onclick="handleSlotAction(${i}, 'delete')">X</button>
+                    `;
+                } else {
+                    slotEl.className = 'world-slot empty';
+                    slotEl.querySelector('.world-meta').innerText = 'EMPTY WORLD';
+                    slotEl.querySelector('.slot-actions').innerHTML = `
+                        <button class="btn-mini" onclick="handleSlotAction(${i}, 'play')">NEW</button>
+                    `;
+                }
+            }
+        }
+
+        function handleSlotAction(slot, action) {
+            if (action === 'play') {
+                activeSaveSlot = slot;
+                const data = localStorage.getItem(`moinkcraft_world_${slot}`);
+                if (data) {
+                    loadGame(JSON.parse(data));
+                } else {
+                    startNewWorld();
+                }
+                startGame();
+            } else if (action === 'delete') {
+                if (confirm('DELETE WORLD FOREVER?')) {
+                    localStorage.removeItem(`moinkcraft_world_${slot}`);
+                    updateSlotsUI();
+                }
+            }
+        }
+
+        function saveGame() {
+            if (activeSaveSlot === null || player.dead) return;
+            const saveData = {
+                worlds: worlds,
+                player: {
+                    x: player.x,
+                    y: player.y,
+                    health: player.health,
+                    dimension: currentDimension
+                },
+                inventory: {
+                    main: mainInventory,
+                    hotbar: hotbarInventory
+                },
+                timestamp: new Date().toLocaleString()
+            };
+            localStorage.setItem(`moinkcraft_world_${activeSaveSlot}`, JSON.stringify(saveData));
+            showSaveIndicator();
+        }
+
+        function loadGame(data) {
+            worlds = data.worlds;
+            player.x = data.player.x;
+            player.y = data.player.y;
+            player.health = data.player.health;
+            currentDimension = data.player.dimension || 'overworld';
+            mainInventory = data.inventory.main;
+            hotbarInventory = data.inventory.hotbar;
+            updateHUD();
+            updateHeartsUI();
+        }
+
+        function startNewWorld() {
+            worlds = { overworld: {}, nether: {} };
+            generateOverworld();
+            generateNether();
+            mainInventory = new Array(27).fill(null);
+            hotbarInventory = new Array(9).fill(null);
+            
+            const startX = Math.floor(WORLD_WIDTH / 2);
+            let startY = 0;
+            const world = worlds.overworld;
+            while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++;
+            player.x = startX * TILE_SIZE;
+            player.y = (startY - 2) * TILE_SIZE;
+            player.health = MAX_HEALTH;
+            currentDimension = 'overworld';
+            updateHUD();
+            updateHeartsUI();
+            saveGame();
+        }
+
+        function showSaveIndicator() {
+            saveIndicator.style.opacity = '1';
+            setTimeout(() => { saveIndicator.style.opacity = '0'; }, 2000);
+        }
+
+        // UI & RENDERING LOGIC
         function createParticles(x, y, color, count = 5) {
             for(let i=0; i<count; i++) {
                 particles.push({
@@ -482,10 +697,11 @@
             }
         }
 
-        function startGame() { gameStarted = true; document.getElementById('title-screen').style.display = 'none'; }
+        function startGame() { gameStarted = true; isPaused = false; document.getElementById('title-screen').style.display = 'none'; }
         function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
 
         function toggleInventory(useTable = false) {
+            if (isPaused) return;
             inventoryOpen = !inventoryOpen;
             isUsingTable = useTable;
             const screen = document.getElementById('inventory-screen');
@@ -499,6 +715,7 @@
                 returnItems(craftingGrid2x2); returnItems(craftingGrid3x3);
                 if (heldItem) { addItemToInventory(heldItem.id, heldItem.count); heldItem = null; }
                 updateHeldItemCursor();
+                saveGame(); // Auto-save on inventory close
             }
             renderInventory();
         }
@@ -554,47 +771,63 @@
         }
 
         function createItemVisual(id, count) {
-            const frag = document.createDocumentFragment();
             const block = BLOCK_TYPES[id];
-            const icon = document.createElement('div');
-            icon.className = 'block-icon';
+            const container = document.createElement('div');
+            container.className = 'block-icon';
             
-            if (block.toolType) {
-                const stick = document.createElement('div');
-                stick.className = 'tool-stick'; icon.appendChild(stick);
-                const head = document.createElement('div');
-                head.className = 'tool-head'; head.style.backgroundColor = block.color; head.style.position = 'absolute';
-                head.style.border = `2px solid ${block.stroke}`;
-                if (block.toolType === 'pickaxe') { head.style.width = '28px'; head.style.height = '8px'; head.style.top = '4px'; head.style.borderRadius = '2px'; }
-                else if (block.toolType === 'shovel') { head.style.width = '14px'; head.style.height = '14px'; head.style.top = '2px'; head.style.borderRadius = '50% 50% 2px 2px'; }
-                else if (block.toolType === 'axe') { head.style.width = '18px'; head.style.height = '18px'; head.style.top = '2px'; head.style.left = '4px'; head.style.borderRadius = '2px 10px 2px 2px'; }
-                icon.appendChild(head);
+            const drawShape = (style) => {
+                const div = document.createElement('div');
+                Object.assign(div.style, style, { position: 'absolute' });
+                container.appendChild(div);
+            };
+
+            if (block.type === 'ingot') {
+                drawShape({ width: '24px', height: '12px', background: block.color, border: `2px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px', boxShadow: 'inset 2px 2px 0 rgba(255,255,255,0.4)' });
+            } else if (block.type === 'coal') {
+                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)', boxShadow: 'inset 2px 2px 0 rgba(255,255,255,0.1)' });
+            } else if (block.type === 'gem') {
+                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)', border: `2px solid ${block.stroke}`, boxShadow: 'inset 0 0 10px rgba(255,255,255,0.5)' });
+            } else if (block.type === 'dust') {
+                for(let i=0; i<6; i++) {
+                    drawShape({ width: '4px', height: '4px', background: block.color, left: (Math.random()*24)+'px', top: (Math.random()*24)+'px', borderRadius: '1px', boxShadow: '0 0 4px '+block.color });
+                }
+            } else if (block.type === 'armor') {
+                const c = block.color;
+                const s = `2px solid ${block.stroke}`;
+                if (block.part === 'helm') {
+                    drawShape({ width: '20px', height: '16px', background: c, border: s, borderRadius: '10px 10px 2px 2px' });
+                } else if (block.part === 'chest') {
+                    drawShape({ width: '24px', height: '20px', background: c, border: s, borderRadius: '4px' });
+                    drawShape({ width: '30px', height: '8px', background: c, border: s, top: '4px', borderRadius: '2px' });
+                } else if (block.part === 'legs') {
+                    drawShape({ width: '22px', height: '18px', background: c, border: s, clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 65% 100%, 65% 35%, 35% 35%, 35% 100%, 0% 100%)' });
+                } else if (block.part === 'boots') {
+                    drawShape({ width: '10px', height: '10px', background: c, border: s, left: '4px', borderRadius: '2px' });
+                    drawShape({ width: '10px', height: '10px', background: c, border: s, right: '4px', borderRadius: '2px' });
+                }
+            } else if (block.toolType) {
+                drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
+                if (block.toolType === 'pickaxe') drawShape({ width: '28px', height: '8px', background: block.color, border: `2px solid ${block.stroke}`, top: '4px', borderRadius: '2px' });
+                else if (block.toolType === 'shovel') drawShape({ width: '14px', height: '14px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', borderRadius: '50%' });
+                else if (block.toolType === 'axe') drawShape({ width: '18px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', left: '4px', borderRadius: '2px 10px 2px 2px' });
             } else if (id === 15) {
-                const stick = document.createElement('div'); stick.className = 'tool-stick'; icon.appendChild(stick);
-            } else if (id === 59) {
-                const flint = document.createElement('div'); flint.style.width = '12px'; flint.style.height = '12px'; flint.style.background = '#424242'; flint.style.borderRadius = '2px';
-                const steel = document.createElement('div'); steel.style.width = '14px'; steel.style.height = '8px'; steel.style.background = '#e0e0e0'; steel.style.transform = 'translate(8px, 8px)';
-                icon.appendChild(flint); icon.appendChild(steel);
-            } else if (id === 60) {
-                 icon.style.background = 'radial-gradient(circle, #7b1fa2, #4a148c)'; icon.style.border = '2px solid #fff';
+                drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
             } else {
-                icon.style.backgroundColor = block.color;
-                icon.style.border = `2px solid ${block.stroke}`;
+                drawShape({ width: '30px', height: '30px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '2px', boxShadow: 'inset 4px 4px 0 rgba(255,255,255,0.2)' });
                 if (block.ore) {
                     for(let i=0; i<3; i++) {
-                        const speck = document.createElement('div');
-                        speck.style.position = 'absolute'; speck.style.width = '6px'; speck.style.height = '6px'; speck.style.backgroundColor = block.ore;
-                        speck.style.left = (Math.random()*24)+'px'; speck.style.top = (Math.random()*24)+'px'; speck.style.borderRadius = '1px'; icon.appendChild(speck);
+                        drawShape({ width: '6px', height: '6px', background: block.ore, left: (Math.random()*20)+'px', top: (Math.random()*20)+'px', borderRadius: '1px' });
                     }
                 }
-                // Bevel effect
-                const bevel = document.createElement('div');
-                bevel.style.position = 'absolute'; bevel.style.inset = '0'; bevel.style.borderTop = '3px solid rgba(255,255,255,0.2)'; bevel.style.borderLeft = '3px solid rgba(255,255,255,0.2)';
-                icon.appendChild(bevel);
             }
-            if (count > 1) { const cnt = document.createElement('div'); cnt.className = 'item-count'; cnt.innerText = count; frag.appendChild(cnt); }
-            frag.appendChild(icon);
-            return frag;
+
+            if (count > 1) { 
+                const cnt = document.createElement('div'); 
+                cnt.className = 'item-count'; 
+                cnt.innerText = count; 
+                container.appendChild(cnt); 
+            }
+            return container;
         }
 
         function handleSlotClick(type, idx, button) {
@@ -732,7 +965,7 @@
         }
 
         function handleWorldInteraction() {
-            if (player.dead || inventoryOpen) return;
+            if (player.dead || inventoryOpen || isPaused) return;
             const world = worlds[currentDimension];
             const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
             const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
@@ -809,6 +1042,8 @@
                         if (y > surfaceY + 12 && Math.random() < 0.1) type = 13;
                         if (Math.random() < 0.05) type = 57; 
                         if (y > surfaceY + 20 && Math.random() < 0.06) type = 14;
+                        if (y > surfaceY + 30 && Math.random() < 0.05) type = 27;
+                        if (y > surfaceY + 40 && Math.random() < 0.03) type = 25;
                         if (y > surfaceY + 50 && Math.random() < 0.02) type = 26;
                         if (y > surfaceY + 60 && Math.random() < 0.015) type = 28;
                     }
@@ -850,7 +1085,7 @@
 
         function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
         function takeDamage(amt) { if (player.invuln > 0 || player.dead) return; player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); if (player.health <= 0) die(); player.vy = -5; }
-        function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; }
+        function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; saveGame(); }
         function respawn() { 
             player.health = MAX_HEALTH; player.dead = false; 
             currentDimension = 'overworld'; 
@@ -860,6 +1095,7 @@
             while(!world[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++;
             player.y = (startY - 2) * TILE_SIZE;
             updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; 
+            saveGame();
         }
 
         function getMiningSpeed() {
@@ -878,17 +1114,15 @@
         }
 
         function update() {
-            if (!gameStarted || player.dead || inventoryOpen) return;
+            if (!gameStarted || player.dead || inventoryOpen || isPaused) return;
             if (player.invuln > 0) player.invuln--;
             
             const world = worlds[currentDimension];
 
-            // Update Particles
             particles = particles.filter(p => {
                 p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--; return p.life > 0;
             });
 
-            // Teleport Logic
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE);
             const py = Math.floor((player.y + player.h/2) / TILE_SIZE);
             if (world[`${px},${py}`] === 60) {
@@ -914,6 +1148,7 @@
                         player.y = (startY - 2) * TILE_SIZE;
                     }
                     updateHUD();
+                    saveGame();
                 }
             } else {
                 teleportTimer = 0;
@@ -941,7 +1176,6 @@
             } else { miningTarget = null; miningProgress = 0; }
 
             let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED;
-            let maxH = keys['shift'] ? 10 : 7;
             if (keys['a'] || keys['arrowleft']) { player.vx -= curSpeed; player.facing = -1; player.animTimer += 0.2; }
             if (keys['d'] || keys['arrowright']) { player.vx += curSpeed; player.facing = 1; player.animTimer += 0.2; }
             player.vx *= FRICTION; 
@@ -949,7 +1183,6 @@
             if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; player.squash = 1.3; }
             player.vy += GRAVITY; player.y += player.vy; 
             
-            // Squash Logic
             player.squash += (1 - player.squash) * 0.15;
             
             player.grounded = false;
@@ -989,7 +1222,6 @@
             const ty = y * TILE_SIZE;
             const time = Date.now() / 300;
 
-            // Base Block
             ctx.fillStyle = b.color;
             if (b.animated) {
                 if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`;
@@ -998,8 +1230,7 @@
             }
             ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
 
-            // Special Textures
-            if (type === 1) { // Grass
+            if (type === 1) { 
                 ctx.fillStyle = b.topColor;
                 ctx.fillRect(tx, ty, TILE_SIZE, 8);
                 ctx.fillRect(tx, ty+8, 4, 4); ctx.fillRect(tx+12, ty+8, 8, 4); ctx.fillRect(tx+28, ty+8, 6, 4);
@@ -1017,7 +1248,7 @@
                 ctx.fillRect(tx+6, ty+8, 2, 2); ctx.fillRect(tx+24, ty+14, 3, 3);
             }
 
-            if (type === 11) { // Clock
+            if (type === 11) { 
                 ctx.fillStyle = '#fff';
                 ctx.beginPath(); ctx.arc(tx + TILE_SIZE/2, ty + TILE_SIZE/2, TILE_SIZE/2.5, 0, Math.PI*2); ctx.fill();
                 ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
@@ -1027,13 +1258,11 @@
                 ctx.stroke();
             }
 
-            // Highlighting / Bevel
             ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2;
             ctx.strokeRect(tx+1, ty+1, TILE_SIZE-2, TILE_SIZE-2);
             ctx.strokeStyle = 'rgba(0,0,0,0.2)';
             ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
             
-            // Mining Stage
             if (miningTarget && miningTarget.wx === x && miningTarget.wy === y) {
                 const stage = Math.floor((miningProgress / b.hardness) * 5);
                 if (stage > 0) {
@@ -1053,53 +1282,47 @@
             ctx.save(); ctx.translate(-camera.x, -camera.y);
             
             const world = worlds[currentDimension];
-            const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1);
-            const v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1);
+            if (world) {
+                const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1);
+                const v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1);
 
-            for (let x = v1; x <= v2; x++) {
-                for (let y = v3; y <= v4; y++) {
-                    const type = world[`${x},${y}`];
-                    if (type) drawBlock(x, y, type);
+                for (let x = v1; x <= v2; x++) {
+                    for (let y = v3; y <= v4; y++) {
+                        const type = world[`${x},${y}`];
+                        if (type) drawBlock(x, y, type);
+                    }
                 }
             }
 
-            // Draw Particles
             particles.forEach(p => {
                 ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50;
                 ctx.fillRect(p.x, p.y, 6, 6);
             });
             ctx.globalAlpha = 1;
 
-            // Draw Player (Detailed Pig)
             if (!player.dead && player.invuln % 6 < 3) {
                 ctx.save(); 
                 ctx.translate(player.x + player.w/2, player.y + player.h);
                 ctx.scale(player.facing, player.squash);
                 ctx.translate(-player.w/2, -player.h);
 
-                // Body
                 ctx.fillStyle = '#ffb6c1';
                 ctx.fillRect(0, 4, player.w, player.h - 10);
                 ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2;
                 ctx.strokeRect(0, 4, player.w, player.h - 10);
 
-                // Legs
-                const legOffset = Math.sin(player.animTimer) * 6;
                 ctx.fillStyle = '#ffb6c1';
                 ctx.fillRect(4, player.h - 8, 8, 8 + (player.grounded ? 0 : 2));
                 ctx.fillRect(player.w - 12, player.h - 8, 8, 8 - (player.grounded ? 0 : 2));
                 
-                // Snout
                 ctx.fillStyle = '#ff69b4';
                 ctx.fillRect(player.w - 6, 12, 10, 10);
                 ctx.fillStyle = '#c71585';
                 ctx.fillRect(player.w + 1, 15, 2, 2); ctx.fillRect(player.w + 1, 19, 2, 2);
 
-                // Eyes
                 ctx.fillStyle = '#000';
                 ctx.fillRect(player.w - 10, 8, 4, 4);
 
-                // Tail
                 ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(0, 10); ctx.quadraticCurveTo(-10, 5, -5, 0); ctx.stroke();
 
