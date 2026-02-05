@@ -422,14 +422,14 @@
         const TICKS_PER_SECOND = 20;
         const TICK_TIME = 1000 / TICKS_PER_SECOND;
         
-        // Physics constants adjusted for 20Hz ticks (originally tuned for ~60fps)
-        const GRAVITY = 1.35; 
-        const FRICTION = 0.55; 
-        const SPEED = 1.5; 
-        const SPRINT_SPEED = 2.7; 
-        const JUMP = -18; 
+        // Tuned for responsive movement at 20Hz
+        const GRAVITY = 1.6; 
+        const FRICTION = 0.6; 
+        const SPEED = 6.0; 
+        const SPRINT_SPEED = 10.0; 
+        const JUMP = -26; 
         const MAX_HEALTH = 10;
-        const INVULN_TIME = 15; // 0.75s at 20tps
+        const INVULN_TIME = 15; 
         const WORLD_WIDTH = 100;
         const WORLD_HEIGHT = 100;
 
@@ -574,7 +574,6 @@
         let mouse = { x: 0, y: 0, down: false, rightDown: false };
         let particles = [];
 
-        // Tick loop variables
         let lastTimestamp = 0;
         let tickAccumulator = 0;
 
@@ -643,6 +642,7 @@
             isPaused = false;
             gameStarted = false;
             pauseMenuEl.style.display = 'none';
+            document.getElementById('title-screen').style.display = 'none'; // Force hide
             document.getElementById('title-screen').style.display = 'flex';
             updateSlotsUI();
         }
@@ -1238,8 +1238,9 @@
                 if (item) slot.appendChild(createItemVisual(item.id, item.count));
                 hud.appendChild(slot);
             }
-            document.getElementById('dim-indicator').innerText = currentDimension === 'overworld' ? 'Overworld' : 'The Nether';
-            document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : '#ff4d4d';
+            const dimInd = document.getElementById('dim-indicator');
+            dimInd.innerText = currentDimension === 'overworld' ? 'Overworld' : 'The Nether';
+            dimInd.style.color = currentDimension === 'overworld' ? '#ffb6c1' : '#ff4d4d';
             
             const modeInd = document.getElementById('mode-indicator');
             modeInd.innerText = player.gameMode === 'creative' ? 'Creative Mode' : 'Survival Mode';
@@ -1324,7 +1325,7 @@
             player.invuln = INVULN_TIME; 
             updateHeartsUI(); 
             if (player.health <= 0) die(); 
-            player.vy = -15; // Scaled up for 20Hz
+            player.vy = -15; 
         }
         
         function die() { 
@@ -1355,17 +1356,17 @@
             if (!targetBlock) return 1;
             const block = BLOCK_TYPES[targetBlock];
             if (block.id === 29) return 0;
-            let speed = 3; // Base speed scaled up for 20Hz
+            
+            let speed = 1.0; 
             if (activeItem) {
                 const tool = BLOCK_TYPES[activeItem.id];
                 if (tool && tool.toolType && block.tool === tool.toolType) {
-                    speed = 3 + (tool.tier * 18); // Scaled for 20Hz
+                    speed = 1.0 + (tool.tier * 2.5); 
                 }
             }
             return speed;
         }
 
-        // Refactored Loop: Tick-based logic
         function loop(timestamp) {
             if (!lastTimestamp) lastTimestamp = timestamp;
             const deltaTime = timestamp - lastTimestamp;
@@ -1388,7 +1389,7 @@
             const world = worlds[currentDimension];
 
             particles = particles.filter(p => {
-                p.x += p.vx; p.y += p.vy; p.vy += 0.6; // Scaled gravity for particles
+                p.x += p.vx; p.y += p.vy; p.vy += 0.6; 
                 p.life--; return p.life > 0;
             });
 
@@ -1396,7 +1397,7 @@
             const py = Math.floor((player.y + player.h/2) / TILE_SIZE);
             if (world[`${px},${py}`] === 60) {
                 teleportTimer++;
-                portalOverlay.style.opacity = teleportTimer / 20; // 1s at 20tps
+                portalOverlay.style.opacity = teleportTimer / 20; 
                 if (teleportTimer >= 20) {
                     currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld';
                     teleportTimer = 0;
@@ -1466,12 +1467,11 @@
             }
 
             player.y += player.vy; 
-            player.squash += (1 - player.squash) * 0.45; // Faster recovery for 20Hz
+            player.squash += (1 - player.squash) * 0.45; 
             
             player.grounded = false;
             if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y');
             
-            // Camera smoothing remains responsive
             camera.x += (player.x - width/2 - camera.x) * 0.3; camera.y += (player.y - height/2 - camera.y) * 0.3;
             document.getElementById('coords').innerText = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${Math.floor(player.y/TILE_SIZE)}`;
         }
