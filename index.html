@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: The Save Update</title>
+    <title>Moinkcraft: The Creative Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -56,6 +56,17 @@
             text-align: center;
             padding: 20px;
             overflow-y: auto;
+        }
+
+        #mode-selection-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 210;
         }
 
         #pause-menu {
@@ -235,6 +246,7 @@
         .btn { margin-top: 15px; padding: 15px 30px; background: #5b8a3e; border: 6px solid; border-color: #92c47c #2d451f #2d451f #92c47c; color: #fff; cursor: pointer; font-size: 12px; pointer-events: auto; text-align: center; box-shadow: 6px 6px 0 rgba(0,0,0,0.4); z-index: 10; transition: transform 0.1s; }
         .btn:hover { background: #6da34a; transform: scale(1.05); }
         .btn.grey { background: #888; border-color: #bbb #444 #444 #bbb; }
+        .btn.gold { background: #f1c40f; border-color: #f9e79f #b8860b #b8860b #f9e79f; color: #333; }
         #portal-overlay {
             position: absolute;
             inset: 0;
@@ -265,6 +277,21 @@
         <div id="held-item-cursor"></div>
         <div id="save-indicator">SAVING...</div>
         
+        <div id="mode-selection-overlay">
+            <h2 style="font-size: 20px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">SELECT GAME MODE</h2>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1; text-align: center;">
+                    <div class="btn" style="width: 200px;" onclick="confirmNewWorld('survival')">SURVIVAL</div>
+                    <div style="font-size: 7px; color: #aaa; margin-top: 10px; line-height: 1.5;">Limited life.<br>Mine for resources.<br>Hunger and danger!</div>
+                </div>
+                <div style="flex: 1; text-align: center;">
+                    <div class="btn gold" style="width: 200px;" onclick="confirmNewWorld('creative')">CREATIVE</div>
+                    <div style="font-size: 7px; color: #f1c40f; margin-top: 10px; line-height: 1.5;">Invincibility.<br>Instant breaking.<br>Infinite blocks!</div>
+                </div>
+            </div>
+            <div class="btn grey" style="margin-top: 40px; padding: 10px 20px;" onclick="closeModeSelection()">CANCEL</div>
+        </div>
+
         <div id="pause-menu">
             <h2 style="font-size: 24px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">GAME PAUSED</h2>
             <div class="btn" onclick="togglePauseMenu()">RESUME</div>
@@ -317,6 +344,7 @@
             <div class="status-ui">
                 <div id="coords" style="font-size: 10px; color: #fff; text-shadow: 2px 2px #000;">X: 0 Y: 0</div>
                 <div id="dim-indicator" style="font-size: 10px; color: #ffb6c1; text-shadow: 2px 2px #000;">Overworld</div>
+                <div id="mode-indicator" style="font-size: 7px; color: #aaa;">Survival Mode</div>
             </div>
             <div class="hud-anchor">
                 <div class="hearts" id="hearts-container"></div>
@@ -476,6 +504,7 @@
         const portalOverlay = document.getElementById('portal-overlay');
         const saveIndicator = document.getElementById('save-indicator');
         const pauseMenuEl = document.getElementById('pause-menu');
+        const modeSelectionEl = document.getElementById('mode-selection-overlay');
         
         let width, height;
         let camera = { x: 0, y: 0 };
@@ -483,6 +512,7 @@
         let worlds = { overworld: {}, nether: {} };
         let teleportTimer = 0;
         let activeSaveSlot = null;
+        let pendingSaveSlot = null;
         
         let player = { 
             x: (WORLD_WIDTH / 2) * TILE_SIZE, 
@@ -497,7 +527,8 @@
             dead: false, 
             facing: 1,
             animTimer: 0,
-            squash: 1
+            squash: 1,
+            gameMode: 'survival' // 'survival' or 'creative'
         };
         
         let mainInventory = new Array(27).fill(null);
@@ -598,20 +629,34 @@
 
         function handleSlotAction(slot, action) {
             if (action === 'play') {
-                activeSaveSlot = slot;
                 const data = localStorage.getItem(`moinkcraft_world_${slot}`);
                 if (data) {
+                    activeSaveSlot = slot;
                     loadGame(JSON.parse(data));
+                    startGame();
                 } else {
-                    startNewWorld();
+                    pendingSaveSlot = slot;
+                    modeSelectionEl.style.display = 'flex';
                 }
-                startGame();
             } else if (action === 'delete') {
                 if (confirm('DELETE WORLD FOREVER?')) {
                     localStorage.removeItem(`moinkcraft_world_${slot}`);
                     updateSlotsUI();
                 }
             }
+        }
+
+        function closeModeSelection() {
+            modeSelectionEl.style.display = 'none';
+            pendingSaveSlot = null;
+        }
+
+        function confirmNewWorld(mode) {
+            activeSaveSlot = pendingSaveSlot;
+            pendingSaveSlot = null;
+            modeSelectionEl.style.display = 'none';
+            startNewWorld(mode);
+            startGame();
         }
 
         function saveGame() {
@@ -622,7 +667,8 @@
                     x: player.x,
                     y: player.y,
                     health: player.health,
-                    dimension: currentDimension
+                    dimension: currentDimension,
+                    gameMode: player.gameMode
                 },
                 inventory: {
                     main: mainInventory,
@@ -639,6 +685,7 @@
             player.x = data.player.x;
             player.y = data.player.y;
             player.health = data.player.health;
+            player.gameMode = data.player.gameMode || 'survival';
             currentDimension = data.player.dimension || 'overworld';
             mainInventory = data.inventory.main;
             hotbarInventory = data.inventory.hotbar;
@@ -646,7 +693,7 @@
             updateHeartsUI();
         }
 
-        function startNewWorld() {
+        function startNewWorld(mode = 'survival') {
             worlds = { overworld: {}, nether: {} };
             generateOverworld();
             generateNether();
@@ -660,6 +707,7 @@
             player.x = startX * TILE_SIZE;
             player.y = (startY - 2) * TILE_SIZE;
             player.health = MAX_HEALTH;
+            player.gameMode = mode;
             currentDimension = 'overworld';
             updateHUD();
             updateHeartsUI();
@@ -982,8 +1030,11 @@
                 if (activeItem && !world[key] && !BLOCK_TYPES[activeItem.id].item) {
                     const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE };
                     if (!checkOverlap(player, rect)) { 
-                        world[key] = activeItem.id; activeItem.count--; 
-                        if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; 
+                        world[key] = activeItem.id;
+                        if (player.gameMode !== 'creative') {
+                            activeItem.count--; 
+                            if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; 
+                        }
                         updateHUD(); 
                     }
                 }
@@ -1020,9 +1071,22 @@
             }
             document.getElementById('dim-indicator').innerText = currentDimension === 'overworld' ? 'Overworld' : 'The Nether';
             document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : '#ff4d4d';
+            
+            const modeInd = document.getElementById('mode-indicator');
+            modeInd.innerText = player.gameMode === 'creative' ? 'Creative Mode' : 'Survival Mode';
+            modeInd.style.color = player.gameMode === 'creative' ? '#f1c40f' : '#aaa';
+            
+            heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex';
         }
 
-        function updateHeartsUI() { heartsContainer.innerHTML = ''; for(let i=0; i<MAX_HEALTH; i++) { const heart = document.createElement('div'); heart.className = `heart ${i >= player.health ? 'empty' : ''}`; heartsContainer.appendChild(heart); } }
+        function updateHeartsUI() { 
+            heartsContainer.innerHTML = ''; 
+            for(let i=0; i<MAX_HEALTH; i++) { 
+                const heart = document.createElement('div'); 
+                heart.className = `heart ${i >= player.health ? 'empty' : ''}`; 
+                heartsContainer.appendChild(heart); 
+            } 
+        }
 
         function generateOverworld() {
             const world = worlds.overworld;
@@ -1084,8 +1148,22 @@
         }
 
         function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
-        function takeDamage(amt) { if (player.invuln > 0 || player.dead) return; player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); if (player.health <= 0) die(); player.vy = -5; }
-        function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; saveGame(); }
+        
+        function takeDamage(amt) { 
+            if (player.gameMode === 'creative' || player.invuln > 0 || player.dead) return; 
+            player.health -= amt; 
+            player.invuln = INVULN_TIME; 
+            updateHeartsUI(); 
+            if (player.health <= 0) die(); 
+            player.vy = -5; 
+        }
+        
+        function die() { 
+            player.dead = true; 
+            document.getElementById('death-screen').style.display = 'flex'; 
+            saveGame(); 
+        }
+        
         function respawn() { 
             player.health = MAX_HEALTH; player.dead = false; 
             currentDimension = 'overworld'; 
@@ -1099,6 +1177,7 @@
         }
 
         function getMiningSpeed() {
+            if (player.gameMode === 'creative') return 9999;
             const activeItem = hotbarInventory[activeHotbarIndex];
             if (!miningTarget) return 1;
             const world = worlds[currentDimension];
