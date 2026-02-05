@@ -224,12 +224,13 @@
         .hud-slot.active { border-color: #fff; background: rgba(255, 255, 255, 0.25); box-shadow: inset 0 0 10px rgba(255,255,255,0.5); }
 
         #inventory-screen { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
-        .mc-container { background: #c6c6c6; border: 6px solid; border-color: #eee #444 #444 #eee; padding: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 15px; position: relative; }
+        .mc-container { background: #c6c6c6; border: 6px solid; border-color: #eee #444 #444 #eee; padding: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 15px; position: relative; width: 600px; }
         .mc-label { color: #222; font-size: 9px; margin-bottom: 6px; font-weight: bold; }
         .mc-slot { width: 48px; height: 48px; background: #8b8b8b; border: 4px solid; border-color: #373737 #fefefe #fefefe #373737; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
         .mc-slot:hover { background: #aaa; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3); }
         .mc-slot.output { width: 56px; height: 56px; border-width: 5px; }
         .mc-grid { display: grid; gap: 4px; }
+        #main-inventory-grid { max-height: 220px; overflow-y: auto; padding: 2px; }
         .top-section { display: flex; gap: 40px; align-items: flex-start; }
         .crafting-section { display: flex; align-items: center; gap: 20px; }
         .crafting-grid-2x2 { display: grid; grid-template-columns: repeat(2, 48px); gap: 4px; }
@@ -286,7 +287,7 @@
                 </div>
                 <div style="flex: 1; text-align: center;">
                     <div class="btn gold" style="width: 200px;" onclick="confirmNewWorld('creative')">CREATIVE</div>
-                    <div style="font-size: 7px; color: #f1c40f; margin-top: 10px; line-height: 1.5;">Invincibility.<br>Instant breaking.<br>Infinite blocks!</div>
+                    <div style="font-size: 7px; color: #f1c40f; margin-top: 10px; line-height: 1.5;">Invincibility.<br>Double jump to fly.<br>Infinite blocks!</div>
                 </div>
             </div>
             <div class="btn grey" style="margin-top: 40px; padding: 10px 20px;" onclick="closeModeSelection()">CANCEL</div>
@@ -338,7 +339,7 @@
                 </div>
             </div>
 
-            <div style="font-size: 6px; color: #555; margin-top: 20px;">ESC: PAUSE | WASD: MOVE | SHIFT: SPRINT | E: INV</div>
+            <div style="font-size: 6px; color: #555; margin-top: 20px;">ESC: PAUSE | WASD: MOVE | SPACE: JUMP | E: INV</div>
         </div>
         <div class="ui-overlay">
             <div class="status-ui">
@@ -386,7 +387,7 @@
                     </div>
                 </div>
                 <div>
-                    <div class="mc-label">Inventory</div>
+                    <div class="mc-label" id="inventory-label">Inventory</div>
                     <div class="mc-grid" style="grid-template-columns: repeat(9, 48px);" id="main-inventory-grid"></div>
                 </div>
                 <div style="margin-top: 8px;">
@@ -528,7 +529,9 @@
             facing: 1,
             animTimer: 0,
             squash: 1,
-            gameMode: 'survival' // 'survival' or 'creative'
+            gameMode: 'survival', // 'survival' or 'creative'
+            isFlying: false,
+            lastJumpTime: 0
         };
         
         let mainInventory = new Array(27).fill(null);
@@ -558,18 +561,32 @@
 
             window.addEventListener('resize', resize);
             window.addEventListener('keydown', e => {
-                keys[e.key.toLowerCase()] = true;
-                if (!gameStarted) return;
-                
+                const key = e.key.toLowerCase();
+                if (!gameStarted) {
+                    keys[key] = true;
+                    return;
+                }
+
                 if (e.key === 'Escape') {
                     if (inventoryOpen) toggleInventory();
                     else togglePauseMenu();
                 }
 
                 if (!isPaused) {
-                    if (e.key === 'e') toggleInventory();
+                    if (key === 'e') toggleInventory();
                     if (!inventoryOpen && e.key >= '1' && e.key <= '9') { activeHotbarIndex = parseInt(e.key) - 1; updateHUD(); }
+                    
+                    // Toggle Flying
+                    if (!inventoryOpen && (key === 'w' || key === ' ')) {
+                        const now = Date.now();
+                        if (player.gameMode === 'creative' && now - player.lastJumpTime < 300) {
+                            player.isFlying = !player.isFlying;
+                            player.vy = 0;
+                        }
+                        player.lastJumpTime = now;
+                    }
                 }
+                keys[key] = true;
             });
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             window.addEventListener('mousemove', e => {
@@ -689,6 +706,7 @@
             currentDimension = data.player.dimension || 'overworld';
             mainInventory = data.inventory.main;
             hotbarInventory = data.inventory.hotbar;
+            player.isFlying = false;
             updateHUD();
             updateHeartsUI();
         }
@@ -708,6 +726,7 @@
             player.y = (startY - 2) * TILE_SIZE;
             player.health = MAX_HEALTH;
             player.gameMode = mode;
+            player.isFlying = false;
             currentDimension = 'overworld';
             updateHUD();
             updateHeartsUI();
@@ -754,16 +773,31 @@
             isUsingTable = useTable;
             const screen = document.getElementById('inventory-screen');
             screen.style.display = inventoryOpen ? 'flex' : 'none';
-            document.getElementById('crafting-grid-2x2').style.display = isUsingTable ? 'none' : 'grid';
+            document.getElementById('crafting-grid-2x2').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'grid';
             document.getElementById('crafting-grid-3x3').style.display = isUsingTable ? 'grid' : 'none';
-            document.getElementById('pig-preview').style.display = isUsingTable ? 'none' : 'flex';
-            document.getElementById('crafting-label').innerText = isUsingTable ? 'Crafting Table' : 'Crafting';
+            document.getElementById('pig-preview').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'flex';
+            
+            const craftingLabel = document.getElementById('crafting-label');
+            const invLabel = document.getElementById('inventory-label');
+            
+            if (player.gameMode === 'creative') {
+                craftingLabel.innerText = "Item Palette";
+                invLabel.innerText = "Creative Palette (Click to take)";
+                // In creative, we don't need the crafting area at all really
+                document.querySelector('.top-section').style.display = 'none';
+            } else {
+                document.querySelector('.top-section').style.display = 'flex';
+                craftingLabel.innerText = isUsingTable ? 'Crafting Table' : 'Crafting';
+                invLabel.innerText = "Inventory";
+            }
+
             if (!inventoryOpen) {
                 const returnItems = (grid) => { grid.forEach((item, i) => { if (item) addItemToInventory(item.id, item.count); grid[i] = null; }); };
                 returnItems(craftingGrid2x2); returnItems(craftingGrid3x3);
-                if (heldItem) { addItemToInventory(heldItem.id, heldItem.count); heldItem = null; }
+                if (heldItem && player.gameMode !== 'creative') { addItemToInventory(heldItem.id, heldItem.count); heldItem = null; }
+                else if (heldItem) { heldItem = null; }
                 updateHeldItemCursor();
-                saveGame(); // Auto-save on inventory close
+                saveGame();
             }
             renderInventory();
         }
@@ -780,6 +814,7 @@
             };
             const mainGrid = document.getElementById('main-inventory-grid');
             mainGrid.innerHTML = '';
+            // We'll dynamic expand mainGrid for creative
             for (let i = 0; i < 27; i++) {
                 const slot = document.createElement('div');
                 slot.className = 'mc-slot';
@@ -802,15 +837,63 @@
         }
 
         function renderInventory() {
-            const updateSlots = (containerId, arr) => {
-                const container = document.getElementById(containerId);
-                const slots = container.querySelectorAll('.mc-slot');
-                arr.forEach((item, i) => { const slot = slots[i]; if (!slot) return; slot.innerHTML = ''; if (item) slot.appendChild(createItemVisual(item.id, item.count)); });
-            };
-            updateSlots('main-inventory-grid', mainInventory);
-            updateSlots('hotbar-inventory-grid', hotbarInventory);
-            updateSlots('crafting-grid-2x2', craftingGrid2x2);
-            updateSlots('crafting-grid-3x3', craftingGrid3x3);
+            const mainGrid = document.getElementById('main-inventory-grid');
+            
+            if (player.gameMode === 'creative') {
+                mainGrid.innerHTML = '';
+                const allItemIds = Object.keys(BLOCK_TYPES);
+                allItemIds.forEach((id, i) => {
+                    const slot = document.createElement('div');
+                    slot.className = 'mc-slot';
+                    slot.dataset.type = 'creative'; 
+                    slot.dataset.idx = i;
+                    slot.dataset.itemId = id;
+                    slot.appendChild(createItemVisual(parseInt(id), 1));
+                    slot.addEventListener('mousedown', (e) => {
+                        handleSlotClick('creative', parseInt(id), e.button);
+                        e.preventDefault();
+                    });
+                    mainGrid.appendChild(slot);
+                });
+            } else {
+                // Return to normal 27 slots if we were in creative
+                if (mainGrid.children.length !== 27) {
+                    mainGrid.innerHTML = '';
+                    for (let i = 0; i < 27; i++) {
+                        const slot = document.createElement('div');
+                        slot.className = 'mc-slot';
+                        slot.dataset.type = 'main'; slot.dataset.idx = i;
+                        slot.addEventListener('mousedown', (e) => {
+                            handleSlotClick('main', i, e.button);
+                            e.preventDefault();
+                        });
+                        mainGrid.appendChild(slot);
+                    }
+                }
+                const slots = mainGrid.querySelectorAll('.mc-slot');
+                mainInventory.forEach((item, i) => { 
+                    const slot = slots[i]; 
+                    if (!slot) return; 
+                    slot.innerHTML = ''; 
+                    if (item) slot.appendChild(createItemVisual(item.id, item.count)); 
+                });
+            }
+
+            const hbGrid = document.getElementById('hotbar-inventory-grid');
+            const hbSlots = hbGrid.querySelectorAll('.mc-slot');
+            hotbarInventory.forEach((item, i) => { 
+                const slot = hbSlots[i]; 
+                if (!slot) return; 
+                slot.innerHTML = ''; 
+                if (item) slot.appendChild(createItemVisual(item.id, item.count)); 
+            });
+
+            const craftSlots2 = document.querySelectorAll('#crafting-grid-2x2 .mc-slot');
+            craftingGrid2x2.forEach((item, i) => { if(craftSlots2[i]) { craftSlots2[i].innerHTML = ''; if (item) craftSlots2[i].appendChild(createItemVisual(item.id, item.count)); } });
+            
+            const craftSlots3 = document.querySelectorAll('#crafting-grid-3x3 .mc-slot');
+            craftingGrid3x3.forEach((item, i) => { if(craftSlots3[i]) { craftSlots3[i].innerHTML = ''; if (item) craftSlots3[i].appendChild(createItemVisual(item.id, item.count)); } });
+
             checkRecipes();
             const outputSlot = document.getElementById('crafting-output');
             outputSlot.innerHTML = '';
@@ -820,6 +903,7 @@
 
         function createItemVisual(id, count) {
             const block = BLOCK_TYPES[id];
+            if (!block) return document.createElement('div');
             const container = document.createElement('div');
             container.className = 'block-icon';
             
@@ -860,6 +944,8 @@
                 else if (block.toolType === 'axe') drawShape({ width: '18px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', left: '4px', borderRadius: '2px 10px 2px 2px' });
             } else if (id === 15) {
                 drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
+            } else if (block.item) {
+                drawShape({ width: '20px', height: '20px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '50%' });
             } else {
                 drawShape({ width: '30px', height: '30px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '2px', boxShadow: 'inset 4px 4px 0 rgba(255,255,255,0.2)' });
                 if (block.ore) {
@@ -879,12 +965,27 @@
         }
 
         function handleSlotClick(type, idx, button) {
+            if (type === 'creative') {
+                const itemId = idx;
+                const block = BLOCK_TYPES[itemId];
+                const stackSize = (block.item || block.toolType || block.type === 'armor') ? 1 : 64;
+                if (button === 0) {
+                    heldItem = { id: itemId, count: stackSize };
+                } else {
+                    heldItem = { id: itemId, count: 1 };
+                }
+                updateHeldItemCursor();
+                return;
+            }
+
             let targetArray;
             if (type === 'main') targetArray = mainInventory;
             else if (type === 'hotbar') targetArray = hotbarInventory;
             else if (type === 'craft2') targetArray = craftingGrid2x2;
             else if (type === 'craft3') targetArray = craftingGrid3x3;
             if (!targetArray) return;
+
+            if (player.gameMode === 'creative' && type === 'main') return; // Creative "Main" grid is static palette
 
             const current = targetArray[idx];
             
@@ -1172,6 +1273,7 @@
             let startY = 0;
             while(!world[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++;
             player.y = (startY - 2) * TILE_SIZE;
+            player.isFlying = false;
             updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; 
             saveGame();
         }
@@ -1246,7 +1348,7 @@
                         if (Math.random() < 0.3) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1);
                         if (miningProgress >= block.hardness) { 
                             let dropId = block.dropId || block.drop || targetBlock;
-                            addItemToInventory(dropId, 1); 
+                            if (player.gameMode !== 'creative') addItemToInventory(dropId, 1); 
                             createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8);
                             delete world[key]; updateHUD(); miningTarget = null; miningProgress = 0; 
                         }
@@ -1255,13 +1357,27 @@
             } else { miningTarget = null; miningProgress = 0; }
 
             let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED;
+            if (player.isFlying) curSpeed *= 1.5;
+
             if (keys['a'] || keys['arrowleft']) { player.vx -= curSpeed; player.facing = -1; player.animTimer += 0.2; }
             if (keys['d'] || keys['arrowright']) { player.vx += curSpeed; player.facing = 1; player.animTimer += 0.2; }
             player.vx *= FRICTION; 
             player.x += player.vx; resolveCollision('x');
-            if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; player.squash = 1.3; }
-            player.vy += GRAVITY; player.y += player.vy; 
-            
+
+            if (player.isFlying) {
+                if (keys['w'] || keys[' ']) player.vy = -6;
+                else if (keys['s'] || keys['shift']) player.vy = 6;
+                else player.vy *= 0.8;
+            } else {
+                if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { 
+                    player.vy = JUMP; 
+                    player.grounded = false; 
+                    player.squash = 1.3; 
+                }
+                player.vy += GRAVITY;
+            }
+
+            player.y += player.vy; 
             player.squash += (1 - player.squash) * 0.15;
             
             player.grounded = false;
@@ -1281,6 +1397,10 @@
                         const block = BLOCK_TYPES[type]; 
                         if (block.hazard) { takeDamage(1); if (block.id !== 6) continue; }
                         if (block.teleport) continue; 
+                        
+                        if (player.isFlying) continue; // Ghosts through blocks when flying? No, maybe better to collide. 
+                        // But standard creative allows clipping in some cases. Let's keep collision for now unless flying.
+
                         if (axis === 'x') { if (player.vx > 0) player.x = x * TILE_SIZE - player.w; else if (player.vx < 0) player.x = (x + 1) * TILE_SIZE; player.vx = 0; }
                         else { 
                             if (player.vy > 0) { 
@@ -1297,6 +1417,7 @@
 
         function drawBlock(x, y, type) {
             const b = BLOCK_TYPES[type];
+            if(!b) return;
             const tx = x * TILE_SIZE;
             const ty = y * TILE_SIZE;
             const time = Date.now() / 300;
@@ -1404,6 +1525,12 @@
 
                 ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(0, 10); ctx.quadraticCurveTo(-10, 5, -5, 0); ctx.stroke();
+
+                if (player.isFlying) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                    ctx.fillRect(-10, 10, 10, 5);
+                    ctx.fillRect(player.w, 10, 10, 5);
+                }
 
                 ctx.restore();
             }
