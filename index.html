@@ -1,0 +1,938 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Moink O'Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            font-family: 'Press+Start+2P', cursive;
+            background: #1a1a2e;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: white;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #4a90e2;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        #title-screen {
+            position: absolute;
+            inset: 0;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            text-align: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .floating-numbers {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .time-particle {
+            position: absolute;
+            font-size: 20px;
+            color: rgba(212, 175, 55, 0.2);
+            animation: driftUp 10s linear infinite;
+        }
+
+        @keyframes driftUp {
+            0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+            20% { opacity: 0.5; }
+            80% { opacity: 0.5; }
+            100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+        }
+
+        .hero-scene {
+            position: relative;
+            width: 200px;
+            height: 250px;
+            margin-bottom: 40px;
+            z-index: 10;
+        }
+
+        .title-clock {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 120px;
+            background: #d4af37;
+            border: 8px solid #f1c40f;
+            border-radius: 50%;
+            box-shadow: 0 10px 0 #b8860b, 0 20px 30px rgba(0,0,0,0.5);
+        }
+
+        .title-clock::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 4px; height: 40px;
+            background: #333;
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: translate(-50%, -100%) rotate(0deg); }
+            to { transform: translate(-50%, -100%) rotate(360deg); }
+        }
+
+        .title-pig {
+            position: absolute;
+            width: 60px;
+            height: 48px;
+            background: #ffb6c1;
+            bottom: 140px;
+            left: 50%;
+            margin-left: -30px;
+            border-bottom: 4px solid #ff69b4;
+            animation: pigJump 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+
+        .title-pig::before { content: ''; position: absolute; right: -8px; top: 20px; width: 12px; height: 16px; background: #ff69b4; border-right: 3px solid #c71585; }
+        .title-pig::after { content: ''; position: absolute; right: 12px; top: 12px; width: 6px; height: 6px; background: #000; }
+
+        @keyframes pigJump {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(-100px) scaleY(1.1); }
+            95% { transform: translateY(5px) scaleY(0.8); }
+        }
+
+        .game-title {
+            font-size: 32px;
+            color: #ffb6c1;
+            text-shadow: 4px 4px 0px #c71585, 8px 8px 0px rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+            z-index: 10;
+            position: relative;
+        }
+
+        .game-title span { color: #d4af37; text-shadow: 4px 4px 0px #b8860b; }
+
+        .instructions {
+            margin-top: 30px;
+            font-size: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            line-height: 1.8;
+            text-align: center;
+            border: 2px solid #555;
+            border-radius: 4px;
+            max-width: 320px;
+            color: #eee;
+            z-index: 10;
+        }
+
+        .hud-anchor {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .hotbar-hud { display: flex; background: rgba(0, 0, 0, 0.4); padding: 2px; border: 4px solid #333; pointer-events: auto; }
+        .hud-slot { width: 48px; height: 48px; border: 4px solid transparent; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); position: relative; }
+        .hud-slot.active { border-color: #fff; background: rgba(255, 255, 255, 0.3); }
+
+        #inventory-screen { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
+        .mc-container { background: #c6c6c6; border: 4px solid; border-color: #fff #555 #555 #fff; padding: 16px; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 12px; position: relative; }
+        .mc-label { color: #3f3f3f; font-size: 8px; margin-bottom: 4px; }
+        .mc-slot { width: 44px; height: 44px; background: #8b8b8b; border: 3px solid; border-color: #373737 #fff #fff #373737; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+        .mc-slot:hover { background: #9d9d9d; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.2); }
+        .mc-slot.output { width: 52px; height: 52px; }
+        .mc-grid { display: grid; gap: 2px; }
+        .top-section { display: flex; gap: 40px; align-items: flex-start; }
+        .crafting-section { display: flex; align-items: center; gap: 16px; }
+        .crafting-grid-2x2 { display: grid; grid-template-columns: repeat(2, 44px); gap: 2px; }
+        .crafting-grid-3x3 { display: grid; grid-template-columns: repeat(3, 44px); gap: 2px; }
+        .arrow-right { width: 30px; height: 20px; background: #555; clip-path: polygon(0% 20%, 60% 20%, 60% 0%, 100% 50%, 60% 100%, 60% 80%, 0% 80%); }
+        .block-icon { width: 28px; height: 28px; pointer-events: none; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .item-count { position: absolute; bottom: 2px; right: 2px; font-size: 10px; color: #fff; text-shadow: 1.5px 1.5px #3f3f3f; pointer-events: none; }
+        .tool-stick { position: absolute; width: 4px; height: 20px; background: #8b4513; transform: rotate(-45deg); }
+        #held-item-cursor { position: fixed; pointer-events: none; z-index: 1000; display: none; }
+        .status-ui { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .hearts { display: flex; gap: 4px; pointer-events: none; }
+        .heart { width: 18px; height: 18px; background: #ff4d4d; border: 2px solid #990000; box-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
+        .heart.empty { background: #333; border-color: #111; }
+        #death-screen { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 101; }
+        .btn { margin-top: 10px; padding: 12px 24px; background: #5b8a3e; border: 4px solid; border-color: #fff #2d451f #2d451f #fff; color: #fff; cursor: pointer; font-size: 10px; pointer-events: auto; text-align: center; box-shadow: 4px 4px 0 rgba(0,0,0,0.3); z-index: 10; }
+        .btn:hover { background: #6da34a; transform: translateY(-2px); }
+        .btn:active { transform: translateY(1px); box-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="held-item-cursor"></div>
+        <div id="title-screen">
+            <div class="floating-numbers" id="floating-numbers"></div>
+            <div class="hero-scene">
+                <div class="title-pig"></div>
+                <div class="title-clock"></div>
+            </div>
+            <h1 class="game-title">MOINK <span>O'CLOCK</span></h1>
+            <div class="btn" onclick="startGame()" style="font-size: 14px;">START GAME</div>
+            <div class="instructions">
+                WASD: Move & Jump<br>
+                SHIFT: Sprint | E: Inventory<br>
+                L-HOLD: Mine | R-CLICK: Place<br>
+                Explore <span>Forests</span>, <span>Emeralds</span> & <span>Redstone</span>!
+            </div>
+            <div style="margin-top: 20px; font-size: 8px; color: #555;">v1.9 - THE SHAPED CRAFTING UPDATE</div>
+        </div>
+        <div class="ui-overlay">
+            <div class="status-ui">
+                <div id="coords" style="font-size: 8px; color: #eee; text-shadow: 1px 1px #000;">X: 0 Y: 0</div>
+            </div>
+            <div class="hud-anchor">
+                <div class="hearts" id="hearts-container"></div>
+                <div class="hotbar-hud" id="hotbar-hud"></div>
+            </div>
+        </div>
+        <div id="inventory-screen">
+            <div class="mc-container" id="mc-inventory">
+                <div class="top-section">
+                    <div id="pig-preview" style="width: 80px; height: 100px; background: #8b8b8b; border: 3px solid #373737; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 8px; color: #555;">PIG</span>
+                    </div>
+                    <div>
+                        <div class="mc-label" id="crafting-label">Crafting</div>
+                        <div class="crafting-section">
+                            <div class="crafting-grid-2x2" id="crafting-grid-2x2">
+                                <div class="mc-slot" data-type="craft2" data-idx="0"></div>
+                                <div class="mc-slot" data-type="craft2" data-idx="1"></div>
+                                <div class="mc-slot" data-type="craft2" data-idx="2"></div>
+                                <div class="mc-slot" data-type="craft2" data-idx="3"></div>
+                            </div>
+                            <div class="crafting-grid-3x3" id="crafting-grid-3x3" style="display: none;">
+                                <div class="mc-slot" data-type="craft3" data-idx="0"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="1"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="2"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="3"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="4"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="5"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="6"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="7"></div>
+                                <div class="mc-slot" data-type="craft3" data-idx="8"></div>
+                            </div>
+                            <div class="arrow-right"></div>
+                            <div class="mc-slot output" id="crafting-output"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="mc-label">Inventory</div>
+                    <div class="mc-grid" style="grid-template-columns: repeat(9, 44px);" id="main-inventory-grid"></div>
+                </div>
+                <div style="margin-top: 4px;">
+                    <div class="mc-grid" style="grid-template-columns: repeat(9, 44px);" id="hotbar-inventory-grid"></div>
+                </div>
+            </div>
+        </div>
+        <div id="death-screen">
+            <h1 style="color: #ff4d4d; font-size: 18px; margin-bottom: 20px;">YOU DIED</h1>
+            <div class="btn" onclick="respawn()">RESPAWN</div>
+        </div>
+    </div>
+
+    <script>
+        const TILE_SIZE = 32;
+        const GRAVITY = 0.5;
+        const FRICTION = 0.82;
+        const SPEED = 0.55;
+        const SPRINT_SPEED = 0.95;
+        const JUMP = -9.5;
+        const MAX_HEALTH = 10;
+        const INVULN_TIME = 60;
+        const WORLD_WIDTH = 100;
+        const WORLD_HEIGHT = 100;
+
+        const BLOCK_TYPES = {
+            1: { name: 'Grass', color: '#5b8a3e', stroke: '#3e5b2e', hardness: 10, tool: 'shovel' },
+            2: { name: 'Dirt', color: '#7a5a3a', stroke: '#5a3a1a', hardness: 12, tool: 'shovel' },
+            3: { name: 'Stone', color: '#888888', stroke: '#555555', hardness: 50, tool: 'pickaxe' },
+            4: { name: 'Wood', color: '#a0522d', stroke: '#8b4513', hardness: 30, tool: 'axe' },
+            5: { name: 'Leaves', color: '#228b22', stroke: '#006400', hardness: 4 },
+            6: { name: 'Lava', color: '#ff4500', stroke: '#ff8c00', hazard: true, hardness: 1000 },
+            7: { name: 'Cobble', color: '#666666', stroke: '#444444', hardness: 40, tool: 'pickaxe' },
+            8: { name: 'Sand', color: '#edc9af', stroke: '#d2b48c', hardness: 10, tool: 'shovel' },
+            9: { name: 'Brick', color: '#b22222', stroke: '#8b0000', hardness: 60, tool: 'pickaxe' },
+            10: { name: 'Planks', color: '#d2b48c', stroke: '#8b4513', hardness: 25, tool: 'axe' },
+            11: { name: 'Clock', color: '#f8f8f8', stroke: '#d4af37', special: true, hardness: 80, tool: 'pickaxe' },
+            12: { name: 'Crafting Table', color: '#8b4513', stroke: '#5b3a1a', hardness: 40, table: true, tool: 'axe' },
+            13: { name: 'Coal Ore', color: '#888888', stroke: '#555555', hardness: 55, ore: '#222', tool: 'pickaxe', drop: 30 },
+            14: { name: 'Iron Ore', color: '#888888', stroke: '#555555', hardness: 70, ore: '#d2b48c', tool: 'pickaxe', drop: 31 },
+            15: { name: 'Stick', color: '#8b4513', stroke: '#5b3a1a', hardness: 10, item: true },
+            16: { name: 'Wood Pickaxe', color: '#a0522d', toolType: 'pickaxe', tier: 1, item: true },
+            17: { name: 'Wood Shovel', color: '#a0522d', toolType: 'shovel', tier: 1, item: true },
+            18: { name: 'Wood Axe', color: '#a0522d', toolType: 'axe', tier: 1, item: true },
+            19: { name: 'Stone Pickaxe', color: '#888888', toolType: 'pickaxe', tier: 2, item: true },
+            20: { name: 'Stone Shovel', color: '#888888', toolType: 'shovel', tier: 2, item: true },
+            21: { name: 'Stone Axe', color: '#888888', toolType: 'axe', tier: 2, item: true },
+            22: { name: 'Iron Pickaxe', color: '#e0e0e0', toolType: 'pickaxe', tier: 3, item: true },
+            23: { name: 'Iron Shovel', color: '#e0e0e0', toolType: 'shovel', tier: 3, item: true },
+            24: { name: 'Iron Axe', color: '#e0e0e0', toolType: 'axe', tier: 3, item: true },
+            25: { name: 'Gold Ore', color: '#888888', stroke: '#555555', hardness: 75, ore: '#ffd700', tool: 'pickaxe', drop: 32 },
+            26: { name: 'Diamond Ore', color: '#888888', stroke: '#555555', hardness: 150, ore: '#00ffff', tool: 'pickaxe', drop: 33 },
+            27: { name: 'Glass', color: 'rgba(200, 240, 255, 0.4)', stroke: '#fff', hardness: 5 },
+            28: { name: 'Obsidian', color: '#1a002a', stroke: '#330066', hardness: 500, tool: 'pickaxe' },
+            29: { name: 'Bedrock', color: '#222', stroke: '#000', hardness: 999999 },
+            30: { name: 'Coal', color: '#222', item: true },
+            31: { name: 'Iron Ingot', color: '#e0e0e0', item: true },
+            32: { name: 'Gold Ingot', color: '#ffd700', item: true },
+            33: { name: 'Diamond', color: '#00ffff', item: true },
+            34: { name: 'Gold Pickaxe', color: '#ffd700', toolType: 'pickaxe', tier: 5, item: true },
+            35: { name: 'Gold Shovel', color: '#ffd700', toolType: 'shovel', tier: 5, item: true },
+            36: { name: 'Gold Axe', color: '#ffd700', toolType: 'axe', tier: 5, item: true },
+            37: { name: 'Diamond Pickaxe', color: '#00ffff', toolType: 'pickaxe', tier: 6, item: true },
+            38: { name: 'Diamond Shovel', color: '#00ffff', toolType: 'shovel', tier: 6, item: true },
+            39: { name: 'Diamond Axe', color: '#00ffff', toolType: 'axe', tier: 6, item: true },
+            40: { name: 'Iron Block', color: '#e0e0e0', stroke: '#ccc', hardness: 100, tool: 'pickaxe' },
+            41: { name: 'Diamond Block', color: '#00ffff', stroke: '#00cccc', hardness: 200, tool: 'pickaxe' },
+            42: { name: 'Redstone Ore', color: '#888888', stroke: '#555555', hardness: 80, ore: '#ff0000', tool: 'pickaxe', drop: 43 },
+            43: { name: 'Redstone', color: '#ff0000', item: true },
+            44: { name: 'Emerald Ore', color: '#888888', stroke: '#555555', hardness: 100, ore: '#00ff00', tool: 'pickaxe', drop: 45 },
+            45: { name: 'Emerald', color: '#00ff00', item: true },
+            46: { name: 'TNT', color: '#ff4d4d', stroke: '#fff', hardness: 1 },
+            47: { name: 'Emerald Block', color: '#00ff00', stroke: '#00aa00', hardness: 150, tool: 'pickaxe' },
+            48: { name: 'Redstone Block', color: '#ff0000', stroke: '#aa0000', hardness: 100, tool: 'pickaxe' },
+            49: { name: 'Torch', color: '#8b4513', stroke: '#ffae00', item: true },
+            50: { name: 'Quartz Block', color: '#fff', stroke: '#eee', hardness: 40, tool: 'pickaxe' },
+            51: { name: 'Netherrack', color: '#7a1b1b', stroke: '#5a0b0b', hardness: 15, tool: 'pickaxe' },
+            52: { name: 'Glowstone', color: '#ffae00', stroke: '#e67e22', hardness: 10 },
+            53: { name: 'Bookshelf', color: '#a0522d', stroke: '#8b4513', hardness: 30, tool: 'axe' },
+            54: { name: 'Sugar', color: '#fff', item: true },
+            55: { name: 'Paper', color: '#f0f0f0', item: true },
+            56: { name: 'Book', color: '#8b4513', item: true }
+        };
+
+        const RECIPES = [
+            // Planks from wood (anywhere)
+            { pattern: [[4]], result: 10, amount: 4 },
+            // Stick from 2 vertical planks
+            { pattern: [[10], [10]], result: 15, amount: 4 },
+            // Crafting Table from 2x2 planks
+            { pattern: [[10, 10], [10, 10]], result: 12, amount: 1 },
+            // Stone Pickaxe (3 cobble top, 2 sticks below)
+            { pattern: [[7, 7, 7], [null, 15, null], [null, 15, null]], result: 19, amount: 1 },
+            // Wood Pickaxe
+            { pattern: [[10, 10, 10], [null, 15, null], [null, 15, null]], result: 16, amount: 1 },
+            // Iron Pickaxe
+            { pattern: [[31, 31, 31], [null, 15, null], [null, 15, null]], result: 22, amount: 1 },
+            // Gold Pickaxe
+            { pattern: [[32, 32, 32], [null, 15, null], [null, 15, null]], result: 34, amount: 1 },
+            // Diamond Pickaxe
+            { pattern: [[33, 33, 33], [null, 15, null], [null, 15, null]], result: 37, amount: 1 },
+            // Shovels
+            { pattern: [[10], [15], [15]], result: 17, amount: 1 },
+            { pattern: [[7], [15], [15]], result: 20, amount: 1 },
+            { pattern: [[31], [15], [15]], result: 23, amount: 1 },
+            { pattern: [[32], [15], [15]], result: 35, amount: 1 },
+            { pattern: [[33], [15], [15]], result: 38, amount: 1 },
+            // Axes (Shaped)
+            { pattern: [[10, 10], [10, 15], [null, 15]], result: 18, amount: 1 },
+            { pattern: [[7, 7], [7, 15], [null, 15]], result: 21, amount: 1 },
+            { pattern: [[31, 31], [31, 15], [null, 15]], result: 24, amount: 1 },
+            { pattern: [[32, 32], [32, 15], [null, 15]], result: 36, amount: 1 },
+            { pattern: [[33, 33], [33, 15], [null, 15]], result: 39, amount: 1 },
+            // Clock
+            { pattern: [[null, 32, null], [32, 15, 32], [null, 32, null]], result: 11, amount: 1 },
+            // Torch
+            { pattern: [[30], [15]], result: 49, amount: 4 },
+            // TNT
+            { pattern: [[8, 8, 8], [8, 8, 8], [8, 8, 8]], result: 46, amount: 1 },
+            // Blocks
+            { pattern: [[31, 31, 31], [31, 31, 31], [31, 31, 31]], result: 40, amount: 1 },
+            { pattern: [[33, 33, 33], [33, 33, 33], [33, 33, 33]], result: 41, amount: 1 },
+            { pattern: [[45, 45, 45], [45, 45, 45], [45, 45, 45]], result: 47, amount: 1 },
+            { pattern: [[43, 43, 43], [43, 43, 43], [43, 43, 43]], result: 48, amount: 1 },
+            // Paper & Book
+            { pattern: [[1, 1, 1]], result: 54, amount: 1 }, // Custom: grass makes sugar
+            { pattern: [[54, 54, 54]], result: 55, amount: 3 },
+            { pattern: [[55], [55], [55]], result: 56, amount: 1 },
+            // Bookshelf
+            { pattern: [[10, 10, 10], [56, 56, 56], [10, 10, 10]], result: 53, amount: 1 }
+        ];
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const heartsContainer = document.getElementById('hearts-container');
+        
+        let width, height;
+        let camera = { x: 0, y: 0 };
+        let world = {}; 
+        let player = { x: (WORLD_WIDTH / 2) * TILE_SIZE, y: 0, vx: 0, vy: 0, w: 28, h: 22, grounded: false, health: MAX_HEALTH, invuln: 0, dead: false, facing: 1 };
+        
+        let mainInventory = new Array(27).fill(null);
+        let hotbarInventory = new Array(9).fill(null);
+        let craftingGrid2x2 = new Array(4).fill(null);
+        let craftingGrid3x3 = new Array(9).fill(null);
+        let craftingOutput = null;
+        let activeRecipeMatch = null;
+        let heldItem = null;
+
+        let isUsingTable = false;
+        let miningTarget = null;
+        let miningProgress = 0;
+        let activeHotbarIndex = 0; 
+        let inventoryOpen = false;
+        let gameStarted = false;
+        let keys = {};
+        let mouse = { x: 0, y: 0, down: false, rightDown: false };
+
+        function init() {
+            resize();
+            generateTerrain();
+            setupInventoryUI();
+            updateHUD();
+            updateHeartsUI();
+            setupTitleParticles();
+            
+            const startX = Math.floor(WORLD_WIDTH / 2);
+            let startY = 0;
+            while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++;
+            player.x = startX * TILE_SIZE;
+            player.y = (startY - 2) * TILE_SIZE;
+
+            window.addEventListener('resize', resize);
+            window.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+                if (!gameStarted) return;
+                if (e.key === 'e') toggleInventory();
+                if (!inventoryOpen && e.key >= '1' && e.key <= '9') { activeHotbarIndex = parseInt(e.key) - 1; updateHUD(); }
+            });
+            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            window.addEventListener('mousemove', e => {
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = e.clientX - rect.left;
+                mouse.y = e.clientY - rect.top;
+                if (gameStarted) updateHeldItemCursor();
+            });
+            window.addEventListener('mousedown', e => {
+                if (!gameStarted) return;
+                if (e.button === 0) mouse.down = true;
+                if (e.button === 2) { mouse.rightDown = true; if (!inventoryOpen) handleWorldInteraction(); }
+            });
+            window.addEventListener('mouseup', e => { if (e.button === 0) mouse.down = false; if (e.button === 2) mouse.rightDown = false; });
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            requestAnimationFrame(loop);
+        }
+
+        function setupTitleParticles() {
+            const container = document.getElementById('floating-numbers');
+            for(let i=0; i<15; i++) {
+                const p = document.createElement('div');
+                p.className = 'time-particle';
+                p.innerText = Math.floor(Math.random() * 12) + 1;
+                p.style.left = Math.random() * 100 + 'vw';
+                p.style.animationDelay = (Math.random() * 10) + 's';
+                p.style.fontSize = (Math.random() * 20 + 20) + 'px';
+                container.appendChild(p);
+            }
+        }
+
+        function startGame() { gameStarted = true; document.getElementById('title-screen').style.display = 'none'; }
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+
+        function toggleInventory(useTable = false) {
+            inventoryOpen = !inventoryOpen;
+            isUsingTable = useTable;
+            const screen = document.getElementById('inventory-screen');
+            screen.style.display = inventoryOpen ? 'flex' : 'none';
+            document.getElementById('crafting-grid-2x2').style.display = isUsingTable ? 'none' : 'grid';
+            document.getElementById('crafting-grid-3x3').style.display = isUsingTable ? 'grid' : 'none';
+            document.getElementById('pig-preview').style.display = isUsingTable ? 'none' : 'flex';
+            document.getElementById('crafting-label').innerText = isUsingTable ? 'Crafting Table' : 'Crafting';
+            if (!inventoryOpen) {
+                const returnItems = (grid) => { grid.forEach((item, i) => { if (item) addItemToInventory(item.id, item.count); grid[i] = null; }); };
+                returnItems(craftingGrid2x2); returnItems(craftingGrid3x3);
+                if (heldItem) { addItemToInventory(heldItem.id, heldItem.count); heldItem = null; }
+                updateHeldItemCursor();
+            }
+            renderInventory();
+        }
+
+        function setupInventoryUI() {
+            const setupSlot = (slot) => {
+                slot.addEventListener('mousedown', (e) => {
+                    const type = slot.dataset.type;
+                    const idx = parseInt(slot.dataset.idx);
+                    handleSlotClick(type, idx, e.button);
+                    e.preventDefault();
+                });
+                slot.addEventListener('contextmenu', (e) => e.preventDefault());
+            };
+            const mainGrid = document.getElementById('main-inventory-grid');
+            mainGrid.innerHTML = '';
+            for (let i = 0; i < 27; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'mc-slot';
+                slot.dataset.type = 'main'; slot.dataset.idx = i;
+                setupSlot(slot);
+                mainGrid.appendChild(slot);
+            }
+            const hbGrid = document.getElementById('hotbar-inventory-grid');
+            hbGrid.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'mc-slot';
+                slot.dataset.type = 'hotbar'; slot.dataset.idx = i;
+                setupSlot(slot);
+                hbGrid.appendChild(slot);
+            }
+            document.querySelectorAll('#crafting-grid-2x2 .mc-slot').forEach(setupSlot);
+            document.querySelectorAll('#crafting-grid-3x3 .mc-slot').forEach(setupSlot);
+            document.getElementById('crafting-output').addEventListener('mousedown', (e) => { if (e.button === 0) handleCraftingOutputClick(); });
+        }
+
+        function renderInventory() {
+            const updateSlots = (containerId, arr) => {
+                const container = document.getElementById(containerId);
+                const slots = container.querySelectorAll('.mc-slot');
+                arr.forEach((item, i) => { const slot = slots[i]; if (!slot) return; slot.innerHTML = ''; if (item) slot.appendChild(createItemVisual(item.id, item.count)); });
+            };
+            updateSlots('main-inventory-grid', mainInventory);
+            updateSlots('hotbar-inventory-grid', hotbarInventory);
+            updateSlots('crafting-grid-2x2', craftingGrid2x2);
+            updateSlots('crafting-grid-3x3', craftingGrid3x3);
+            checkRecipes();
+            const outputSlot = document.getElementById('crafting-output');
+            outputSlot.innerHTML = '';
+            if (craftingOutput) outputSlot.appendChild(createItemVisual(craftingOutput.id, craftingOutput.count));
+            updateHUD();
+        }
+
+        function createItemVisual(id, count) {
+            const frag = document.createDocumentFragment();
+            const block = BLOCK_TYPES[id];
+            const icon = document.createElement('div');
+            icon.className = 'block-icon';
+            
+            if (block.toolType) {
+                const stick = document.createElement('div');
+                stick.className = 'tool-stick'; icon.appendChild(stick);
+                const head = document.createElement('div');
+                head.className = 'tool-head'; head.style.backgroundColor = block.color; head.style.position = 'absolute';
+                if (block.toolType === 'pickaxe') { head.style.width = '24px'; head.style.height = '6px'; head.style.top = '4px'; head.style.borderRadius = '2px'; }
+                else if (block.toolType === 'shovel') { head.style.width = '12px'; head.style.height = '12px'; head.style.top = '2px'; head.style.borderRadius = '50% 50% 2px 2px'; }
+                else if (block.toolType === 'axe') { head.style.width = '14px'; head.style.height = '14px'; head.style.top = '2px'; head.style.left = '4px'; head.style.borderRadius = '2px 8px 2px 2px'; }
+                icon.appendChild(head);
+            } else if (id === 15) {
+                const stick = document.createElement('div'); stick.className = 'tool-stick'; icon.appendChild(stick);
+            } else if (id === 33 || id === 45) {
+                const diamond = document.createElement('div');
+                diamond.style.width = '16px'; diamond.style.height = '16px'; diamond.style.backgroundColor = block.color;
+                diamond.style.transform = 'rotate(45deg)'; diamond.style.boxShadow = 'inset 2px 2px #fff';
+                icon.appendChild(diamond);
+            } else if (id === 31 || id === 32) {
+                const ingot = document.createElement('div');
+                ingot.style.width = '20px'; ingot.style.height = '10px'; ingot.style.backgroundColor = block.color;
+                ingot.style.border = '1px solid rgba(0,0,0,0.2)'; ingot.style.borderRadius = '2px';
+                icon.appendChild(ingot);
+            } else if (id === 43) {
+                for(let i=0; i<4; i++) {
+                    const dust = document.createElement('div');
+                    dust.style.position = 'absolute'; dust.style.width = '5px'; dust.style.height = '5px'; dust.style.backgroundColor = '#ff0000';
+                    dust.style.left = (4 + i*4)+'px'; dust.style.top = (10 + Math.sin(i)*5)+'px'; icon.appendChild(dust);
+                }
+            } else if (id === 49) {
+                const stick = document.createElement('div'); stick.style.width = '4px'; stick.style.height = '16px'; stick.style.backgroundColor = '#8b4513';
+                const flame = document.createElement('div'); flame.style.width = '6px'; flame.style.height = '6px'; flame.style.backgroundColor = '#ffae00'; flame.style.position = 'absolute'; flame.style.top = '-4px';
+                icon.appendChild(stick); icon.appendChild(flame);
+            } else {
+                icon.style.backgroundColor = block.color;
+                icon.style.border = `2px solid ${block.stroke}`;
+                if (block.ore) {
+                    for(let i=0; i<3; i++) {
+                        const speck = document.createElement('div');
+                        speck.style.position = 'absolute'; speck.style.width = '4px'; speck.style.height = '4px'; speck.style.backgroundColor = block.ore;
+                        speck.style.left = (Math.random()*20)+'px'; speck.style.top = (Math.random()*20)+'px'; icon.appendChild(speck);
+                    }
+                }
+            }
+            if (count > 1) { const cnt = document.createElement('div'); cnt.className = 'item-count'; cnt.innerText = count; frag.appendChild(cnt); }
+            frag.appendChild(icon);
+            return frag;
+        }
+
+        function handleSlotClick(type, idx, button) {
+            let targetArray;
+            if (type === 'main') targetArray = mainInventory;
+            else if (type === 'hotbar') targetArray = hotbarInventory;
+            else if (type === 'craft2') targetArray = craftingGrid2x2;
+            else if (type === 'craft3') targetArray = craftingGrid3x3;
+            if (!targetArray) return;
+
+            const current = targetArray[idx];
+            
+            if (button === 0) {
+                if (!heldItem && current) { heldItem = { ...current }; targetArray[idx] = null; }
+                else if (heldItem && !current) { targetArray[idx] = { ...heldItem }; heldItem = null; }
+                else if (heldItem && current) { 
+                    if (heldItem.id === current.id) { current.count += heldItem.count; heldItem = null; }
+                    else { const temp = { ...current }; targetArray[idx] = { ...heldItem }; heldItem = temp; } 
+                }
+            } else if (button === 2) {
+                if (heldItem) { 
+                    if (!current) { targetArray[idx] = { id: heldItem.id, count: 1 }; heldItem.count--; }
+                    else if (current.id === heldItem.id) { current.count++; heldItem.count--; } 
+                    if (heldItem.count <= 0) heldItem = null; 
+                }
+                else if (current) { 
+                    const take = Math.ceil(current.count / 2); 
+                    heldItem = { id: current.id, count: take }; 
+                    current.count -= take; 
+                    if (current.count <= 0) targetArray[idx] = null; 
+                }
+            }
+            updateHeldItemCursor(); 
+            renderInventory();
+        }
+
+        function handleCraftingOutputClick() {
+            if (craftingOutput && activeRecipeMatch && (!heldItem || heldItem.id === craftingOutput.id)) {
+                if (!heldItem) heldItem = { ...craftingOutput }; else heldItem.count += craftingOutput.count;
+                
+                const grid = isUsingTable ? craftingGrid3x3 : craftingGrid2x2;
+                const match = activeRecipeMatch;
+                const recipe = match.recipe;
+                const offsetX = match.offsetX;
+                const offsetY = match.offsetY;
+                const gridWidth = isUsingTable ? 3 : 2;
+
+                // Consume ingredients from the grid slots used in the match
+                for (let r = 0; r < recipe.pattern.length; r++) {
+                    for (let c = 0; c < recipe.pattern[r].length; c++) {
+                        const ingId = recipe.pattern[r][c];
+                        if (ingId !== null) {
+                            const gridIdx = (r + offsetY) * gridWidth + (c + offsetX);
+                            grid[gridIdx].count--;
+                            if (grid[gridIdx].count <= 0) grid[gridIdx] = null;
+                        }
+                    }
+                }
+                renderInventory();
+            }
+        }
+
+        function checkRecipes() {
+            const grid = isUsingTable ? craftingGrid3x3 : craftingGrid2x2;
+            const gridWidth = isUsingTable ? 3 : 2;
+            const gridHeight = isUsingTable ? 3 : 2;
+
+            // Find the bounding box of items in the current grid
+            let minX = gridWidth, maxX = -1, minY = gridHeight, maxY = -1;
+            let totalItemsInGrid = 0;
+            for (let y = 0; y < gridHeight; y++) {
+                for (let x = 0; x < gridWidth; x++) {
+                    const item = grid[y * gridWidth + x];
+                    if (item) {
+                        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                        totalItemsInGrid++;
+                    }
+                }
+            }
+
+            if (totalItemsInGrid === 0) { craftingOutput = null; activeRecipeMatch = null; return; }
+
+            // Extract the actual shaped subgrid from the grid
+            const subWidth = maxX - minX + 1;
+            const subHeight = maxY - minY + 1;
+            const subGrid = [];
+            for (let y = 0; y < subHeight; y++) {
+                subGrid[y] = [];
+                for (let x = 0; x < subWidth; x++) {
+                    const item = grid[(y + minY) * gridWidth + (x + minX)];
+                    subGrid[y][x] = item ? item.id : null;
+                }
+            }
+
+            let bestMatch = null;
+            for (const recipe of RECIPES) {
+                const p = recipe.pattern;
+                const pHeight = p.length;
+                const pWidth = p[0].length;
+
+                // Pattern must match extracted subgrid size and values exactly
+                if (subWidth !== pWidth || subHeight !== pHeight) continue;
+
+                let matches = true;
+                for (let r = 0; r < pHeight; r++) {
+                    for (let c = 0; c < pWidth; c++) {
+                        if (subGrid[r][c] !== p[r][c]) { matches = false; break; }
+                    }
+                    if (!matches) break;
+                }
+
+                if (matches) {
+                    bestMatch = { 
+                        recipe: recipe, 
+                        offsetX: minX, 
+                        offsetY: minY 
+                    };
+                    break;
+                }
+            }
+
+            if (bestMatch) {
+                craftingOutput = { id: bestMatch.recipe.result, count: bestMatch.recipe.amount };
+                activeRecipeMatch = bestMatch;
+            } else {
+                craftingOutput = null;
+                activeRecipeMatch = null;
+            }
+        }
+
+        function updateHeldItemCursor() {
+            const cursor = document.getElementById('held-item-cursor');
+            if (heldItem) { 
+                cursor.style.display = 'block'; 
+                cursor.style.left = (mouse.x + 12) + 'px'; 
+                cursor.style.top = (mouse.y + 12) + 'px'; 
+                cursor.innerHTML = ''; 
+                cursor.appendChild(createItemVisual(heldItem.id, heldItem.count)); 
+            }
+            else { cursor.style.display = 'none'; }
+        }
+
+        function addItemToInventory(id, count) {
+            const lists = [hotbarInventory, mainInventory];
+            for (const list of lists) { 
+                for (let i = 0; i < list.length; i++) { 
+                    if (list[i] && list[i].id === id) { list[i].count += count; return true; } 
+                } 
+            }
+            for (const list of lists) { 
+                for (let i = 0; i < list.length; i++) { 
+                    if (!list[i]) { list[i] = { id, count }; return true; } 
+                } 
+            }
+            return false;
+        }
+
+        function handleWorldInteraction() {
+            if (player.dead || inventoryOpen) return;
+            const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
+            const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
+            if (wx < 0 || wx >= WORLD_WIDTH || wy < 0 || wy >= WORLD_HEIGHT) return;
+            const key = `${wx},${wy}`;
+            
+            if (mouse.rightDown) {
+                if (world[key]) { if (BLOCK_TYPES[world[key]].table) { toggleInventory(true); return; } }
+                const activeItem = hotbarInventory[activeHotbarIndex];
+                if (activeItem && !world[key] && !BLOCK_TYPES[activeItem.id].item) {
+                    const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE };
+                    if (!checkOverlap(player, rect)) { 
+                        world[key] = activeItem.id; activeItem.count--; 
+                        if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; 
+                        updateHUD(); 
+                    }
+                }
+            }
+        }
+
+        function updateHUD() {
+            const hud = document.getElementById('hotbar-hud');
+            hud.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const item = hotbarInventory[i];
+                const slot = document.createElement('div');
+                slot.className = `hud-slot ${activeHotbarIndex === i ? 'active' : ''}`;
+                if (item) slot.appendChild(createItemVisual(item.id, item.count));
+                hud.appendChild(slot);
+            }
+        }
+
+        function updateHeartsUI() { heartsContainer.innerHTML = ''; for(let i=0; i<MAX_HEALTH; i++) { const heart = document.createElement('div'); heart.className = `heart ${i >= player.health ? 'empty' : ''}`; heartsContainer.appendChild(heart); } }
+
+        function generateTerrain() {
+            world = {}; 
+            const surfaceHeights = [];
+            const seed = Math.random() * 1000;
+            const roughness = 0.05 + Math.random() * 0.1;
+            const amplitude = 5 + Math.random() * 8;
+            const baseHeight = 35 + Math.random() * 10;
+            for (let x = 0; x < WORLD_WIDTH; x++) {
+                const surfaceY = Math.floor(Math.sin(x * roughness + seed) * amplitude + Math.sin(x * 0.25 + seed * 0.5) * (amplitude / 3) + baseHeight);
+                surfaceHeights[x] = surfaceY;
+                for (let y = surfaceY; y < WORLD_HEIGHT; y++) {
+                    let type = 2; if (y === surfaceY) type = 1;
+                    if (y === WORLD_HEIGHT - 1) type = 29; 
+                    else if (y > surfaceY + 8) {
+                        type = 3; 
+                        if (y > surfaceY + 12 && Math.random() < 0.1) type = 13;
+                        if (y > surfaceY + 20 && Math.random() < 0.06) type = 14;
+                        if (y > surfaceY + 28 && Math.random() < 0.07) type = 42;
+                        if (y > surfaceY + 35 && Math.random() < 0.04) type = 25;
+                        if (y > surfaceY + 45 && Math.random() < 0.03) type = 44;
+                        if (y > surfaceY + 50 && Math.random() < 0.02) type = 26;
+                        if (y > surfaceY + 60 && Math.random() < 0.015) type = 28;
+                        if (y > WORLD_HEIGHT - 30 && Math.random() < 0.3) type = 51; 
+                    }
+                    if (y > surfaceY + 25 && y < WORLD_HEIGHT - 1 && Math.random() < 0.05) type = 6;
+                    world[`${x},${y}`] = type;
+                }
+            }
+            for (let x = 2; x < WORLD_WIDTH - 2; x++) {
+                if (Math.random() < 0.15) { 
+                    const groundY = surfaceHeights[x];
+                    if (world[`${x},${groundY}`] === 1) {
+                        const trunkHeight = 4 + Math.floor(Math.random() * 3);
+                        for (let th = 1; th <= trunkHeight; th++) world[`${x},${groundY - th}`] = 4;
+                        const canopyY = groundY - trunkHeight;
+                        for (let lx = -2; lx <= 2; lx++) {
+                            for (let ly = -2; ly <= 0; ly++) {
+                                const k = `${x + lx},${canopyY + ly}`;
+                                if (!world[k] && Math.abs(lx) + Math.abs(ly) < 4) world[k] = 5;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+        function takeDamage(amt) { if (player.invuln > 0 || player.dead) return; player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); if (player.health <= 0) die(); }
+        function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; }
+        function respawn() { player.health = MAX_HEALTH; player.dead = false; generateTerrain(); const startX = Math.floor(WORLD_WIDTH / 2); let startY = 0; while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++; player.x = startX * TILE_SIZE; player.y = (startY - 2) * TILE_SIZE; updateHeartsUI(); document.getElementById('death-screen').style.display = 'none'; }
+
+        function getMiningSpeed() {
+            const activeItem = hotbarInventory[activeHotbarIndex];
+            if (!miningTarget) return 1;
+            const targetBlock = world[miningTarget.key];
+            if (!targetBlock) return 1;
+            const block = BLOCK_TYPES[targetBlock];
+            if (block.id === 29) return 0;
+            if (!activeItem) return 1;
+            const tool = BLOCK_TYPES[activeItem.id];
+            if (!tool || !tool.toolType) return 1;
+            if (block.tool === tool.toolType) return 1 + (tool.tier * 4);
+            return 1;
+        }
+
+        function update() {
+            if (!gameStarted || player.dead || inventoryOpen) return;
+            if (player.invuln > 0) player.invuln--;
+            if (mouse.down) {
+                const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
+                const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
+                const key = `${wx},${wy}`;
+                const targetBlock = world[key];
+                if (targetBlock) {
+                    if (miningTarget && miningTarget.key === key) {
+                        miningProgress += getMiningSpeed();
+                        const block = BLOCK_TYPES[targetBlock];
+                        if (miningProgress >= block.hardness) { addItemToInventory(block.drop || targetBlock, 1); delete world[key]; updateHUD(); miningTarget = null; miningProgress = 0; }
+                    } else { miningTarget = { wx, wy, key }; miningProgress = 0; }
+                } else { miningTarget = null; miningProgress = 0; }
+            } else { miningTarget = null; miningProgress = 0; }
+            let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED;
+            let maxH = keys['shift'] ? 14 : 9;
+            if (keys['a'] || keys['arrowleft']) { player.vx -= curSpeed; player.facing = -1; }
+            if (keys['d'] || keys['arrowright']) { player.vx += curSpeed; player.facing = 1; }
+            player.vx *= FRICTION; player.vx = Math.max(-maxH, Math.min(maxH, player.vx));
+            player.x += player.vx; resolveCollision('x');
+            if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; }
+            player.vy += GRAVITY; player.y += player.vy; player.grounded = false;
+            if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y');
+            camera.x += (player.x - width/2 - camera.x) * 0.1; camera.y += (player.y - height/2 - camera.y) * 0.1;
+            document.getElementById('coords').innerText = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${Math.floor(player.y/TILE_SIZE)}`;
+        }
+
+        function resolveCollision(axis) {
+            const x1 = Math.floor(player.x / TILE_SIZE), x2 = Math.floor((player.x + player.w - 1) / TILE_SIZE);
+            const y1 = Math.floor(player.y / TILE_SIZE), y2 = Math.floor((player.y + player.h - 1) / TILE_SIZE);
+            for (let x = x1; x <= x2; x++) {
+                for (let y = y1; y <= y2; y++) {
+                    const type = world[`${x},${y}`];
+                    if (type) {
+                        const block = BLOCK_TYPES[type]; if (block.hazard) { takeDamage(1); continue; }
+                        if (axis === 'x') { if (player.vx > 0) player.x = x * TILE_SIZE - player.w; else if (player.vx < 0) player.x = (x + 1) * TILE_SIZE; player.vx = 0; }
+                        else { if (player.vy > 0) { player.y = y * TILE_SIZE - player.h; player.grounded = true; } else if (player.vy < 0) { player.y = (y + 1) * TILE_SIZE; } player.vy = 0; }
+                    }
+                }
+            }
+        }
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+        function draw() {
+            ctx.fillStyle = '#4a90e2'; ctx.fillRect(0, 0, width, height);
+            ctx.save(); ctx.translate(-camera.x, -camera.y);
+            const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1);
+            const v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1);
+            for (let x = v1; x <= v2; x++) {
+                for (let y = v3; y <= v4; y++) {
+                    const type = world[`${x},${y}`];
+                    if (type) {
+                        const b = BLOCK_TYPES[type]; ctx.fillStyle = b.color; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = b.stroke; ctx.strokeRect(x*TILE_SIZE+0.5, y*TILE_SIZE+0.5, TILE_SIZE-1, TILE_SIZE-1);
+                        if (b.special) { ctx.beginPath(); ctx.moveTo(x*TILE_SIZE+16,16+y*TILE_SIZE); ctx.lineTo(x*TILE_SIZE+24, 12+y*TILE_SIZE); ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke(); }
+                        if (b.ore) { ctx.fillStyle = b.ore; ctx.fillRect(x*TILE_SIZE+4,y*TILE_SIZE+4,4,4); ctx.fillRect(x*TILE_SIZE+20,y*TILE_SIZE+10,4,4); ctx.fillRect(x*TILE_SIZE+8,y*TILE_SIZE+22,4,4); }
+                        if (miningTarget && miningTarget.wx === x && miningTarget.wy === y) {
+                            const stage = Math.floor((miningProgress / b.hardness) * 5);
+                            if (stage > 0) { ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 2; for (let i = 0; i < stage; i++) { ctx.beginPath(); ctx.moveTo(x*TILE_SIZE+(i*6), y*TILE_SIZE); ctx.lineTo(x*TILE_SIZE+TILE_SIZE, y*TILE_SIZE+TILE_SIZE-(i*6)); ctx.stroke(); } }
+                        }
+                    }
+                }
+            }
+            if (!player.dead && player.invuln % 6 < 3) {
+                ctx.save(); ctx.translate(player.x, player.y);
+                ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 0, player.w, player.h);
+                ctx.fillRect(2, player.h, 6, 4); ctx.fillRect(player.w - 8, player.h, 6, 4);
+                ctx.fillStyle = '#ff69b4'; if (player.facing > 0) { ctx.fillRect(player.w - 4, 8, 6, 8); } else { ctx.fillRect(-2, 8, 6, 8); }
+                ctx.fillStyle = '#000'; if (player.facing > 0) ctx.fillRect(player.w-8, 4, 3, 3); else ctx.fillRect(5, 4, 3, 3);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+        init();
+    </script>
+</body>
+</html>
