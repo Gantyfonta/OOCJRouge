@@ -246,13 +246,13 @@
             background: rgba(16, 0, 16, 0.9);
             border: 2px solid #2d0a63;
             color: #fff;
-            padding: 6px 10px;
+            padding: 8px 12px;
             font-size: 8px;
             z-index: 2000;
             display: none;
-            white-space: nowrap;
+            white-space: pre-wrap;
             box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
-            line-height: 1.2;
+            line-height: 1.4;
         }
 
         .status-ui { position: absolute; top: 25px; left: 25px; display: flex; flex-direction: column; gap: 12px; }
@@ -435,17 +435,17 @@
         const BLOCK_TYPES = {
             1: { name: 'Grass', color: '#5b8a3e', stroke: '#3e5b2e', hardness: 10, tool: 'shovel', topColor: '#76b052' },
             2: { name: 'Dirt', color: '#7a5a3a', stroke: '#4d3a24', hardness: 12, tool: 'shovel' },
-            3: { name: 'Stone', color: '#828282', stroke: '#555555', hardness: 50, tool: 'pickaxe', texture: 'stone' },
+            3: { name: 'Stone', color: '#828282', stroke: '#555555', hardness: 50, tool: 'pickaxe', texture: 'stone', requiredTier: 1 },
             4: { name: 'Wood', color: '#6d4c41', stroke: '#3e2723', hardness: 30, tool: 'axe' },
             5: { name: 'Leaves', color: '#2e7d32', stroke: '#1b5e20', hardness: 5 },
             6: { name: 'Lava', color: '#ff5722', stroke: '#bf360c', hazard: true, hardness: 9999, animated: true, fluid: true, type: 'lava' },
-            7: { name: 'Cobble', color: '#616161', stroke: '#424242', hardness: 45, tool: 'pickaxe', texture: 'cobble' },
+            7: { name: 'Cobble', color: '#616161', stroke: '#424242', hardness: 45, tool: 'pickaxe', texture: 'cobble', requiredTier: 1 },
             8: { name: 'Sand', color: '#ffecb3', stroke: '#ffe082', hardness: 10, tool: 'shovel' },
             10: { name: 'Planks', color: '#d2b48c', stroke: '#8b4513', hardness: 25, tool: 'axe' },
-            11: { name: 'Clock', color: '#fdd835', stroke: '#f9a825', special: true, hardness: 80, tool: 'pickaxe' },
+            11: { name: 'Clock', color: '#fdd835', stroke: '#f9a825', special: true, hardness: 80, tool: 'pickaxe', requiredTier: 2 },
             12: { name: 'Crafting Table', color: '#795548', stroke: '#3e2723', hardness: 40, table: true, tool: 'axe' },
-            13: { name: 'Coal Ore', color: '#828282', stroke: '#555555', hardness: 55, ore: '#212121', tool: 'pickaxe', drop: 30 },
-            14: { name: 'Iron Ore', color: '#828282', stroke: '#555555', hardness: 75, ore: '#d7ccc8', tool: 'pickaxe', drop: 31 },
+            13: { name: 'Coal Ore', color: '#828282', stroke: '#555555', hardness: 55, ore: '#212121', tool: 'pickaxe', drop: 30, requiredTier: 1 },
+            14: { name: 'Iron Ore', color: '#828282', stroke: '#555555', hardness: 75, ore: '#d7ccc8', tool: 'pickaxe', drop: 31, requiredTier: 2 },
             15: { name: 'Stick', color: '#5d4037', stroke: '#3e2723', hardness: 10, item: true },
             16: { name: 'Wood Pickaxe', color: '#6d4c41', toolType: 'pickaxe', tier: 1, item: true },
             17: { name: 'Wood Shovel', color: '#6d4c41', toolType: 'shovel', tier: 1, item: true },
@@ -456,16 +456,19 @@
             22: { name: 'Iron Pickaxe', color: '#e0e0e0', toolType: 'pickaxe', tier: 3, item: true },
             23: { name: 'Iron Shovel', color: '#e0e0e0', toolType: 'shovel', tier: 3, item: true },
             24: { name: 'Iron Axe', color: '#e0e0e0', toolType: 'axe', tier: 3, item: true },
-            25: { name: 'Gold Ore', color: '#828282', stroke: '#555555', hardness: 80, ore: '#ffeb3b', tool: 'pickaxe', drop: 32 },
-            26: { name: 'Diamond Ore', color: '#828282', stroke: '#555555', hardness: 150, ore: '#80deea', tool: 'pickaxe', drop: 33 },
-            27: { name: 'Redstone Ore', color: '#828282', stroke: '#555555', hardness: 70, ore: '#ff1744', tool: 'pickaxe', drop: 34 },
-            28: { name: 'Obsidian', color: '#212121', stroke: '#1a1a1a', hardness: 600, tool: 'pickaxe', texture: 'obsidian' },
+            25: { name: 'Gold Ore', color: '#828282', stroke: '#555555', hardness: 80, ore: '#ffeb3b', tool: 'pickaxe', drop: 32, requiredTier: 3 },
+            26: { name: 'Diamond Ore', color: '#828282', stroke: '#555555', hardness: 150, ore: '#00e5ff', tool: 'pickaxe', drop: 33, requiredTier: 3 },
+            27: { name: 'Redstone Ore', color: '#828282', stroke: '#555555', hardness: 70, ore: '#ff1744', tool: 'pickaxe', drop: 34, requiredTier: 3 },
+            28: { name: 'Obsidian', color: '#212121', stroke: '#1a1a1a', hardness: 600, tool: 'pickaxe', texture: 'obsidian', requiredTier: 4 },
             29: { name: 'Bedrock', color: '#1a1a1a', stroke: '#000000', hardness: 999999 },
             30: { name: 'Coal', color: '#212121', item: true, type: 'coal' },
             31: { name: 'Iron Ingot', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'ingot' },
             32: { name: 'Gold Ingot', color: '#fff176', stroke: '#fbc02d', item: true, type: 'ingot' },
             33: { name: 'Diamond', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'gem' },
             34: { name: 'Redstone Dust', color: '#ff1744', item: true, type: 'dust' },
+            82: { name: 'Diamond Pickaxe', color: '#00e5ff', toolType: 'pickaxe', tier: 4, item: true },
+            83: { name: 'Diamond Shovel', color: '#00e5ff', toolType: 'shovel', tier: 4, item: true },
+            84: { name: 'Diamond Axe', color: '#00e5ff', toolType: 'axe', tier: 4, item: true },
             70: { name: 'Iron Helmet', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'helm' },
             71: { name: 'Iron Chestplate', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'chest' },
             72: { name: 'Iron Leggings', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'armor', part: 'legs' },
@@ -478,14 +481,14 @@
             79: { name: 'Diamond Chestplate', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'chest' },
             80: { name: 'Diamond Leggings', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'legs' },
             81: { name: 'Diamond Boots', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'armor', part: 'boots' },
-            51: { name: 'Netherrack', color: '#b71c1c', stroke: '#7f0000', hardness: 15, tool: 'pickaxe', texture: 'netherrack' },
+            51: { name: 'Netherrack', color: '#b71c1c', stroke: '#7f0000', hardness: 15, tool: 'pickaxe', texture: 'netherrack', requiredTier: 1 },
             52: { name: 'Glowstone', color: '#fff59d', stroke: '#fbc02d', hardness: 10, animated: true },
             57: { name: 'Gravel', color: '#bdbdbd', stroke: '#9e9e9e', hardness: 10, tool: 'shovel', dropChance: 0.1, dropId: 58 },
             58: { name: 'Flint', color: '#424242', item: true },
             59: { name: 'Flint and Steel', color: '#e0e0e0', item: true, action: 'ignite' },
             60: { name: 'Nether Portal', color: '#6a1b9a', stroke: '#4a148c', hardness: 999, animated: true, teleport: true },
             61: { name: 'Soul Sand', color: '#5d4037', stroke: '#3e2723', hardness: 15, tool: 'shovel' },
-            62: { name: 'Magma', color: '#bf360c', stroke: '#ff5722', hazard: true, hardness: 40, tool: 'pickaxe', animated: true },
+            62: { name: 'Magma', color: '#bf360c', stroke: '#ff5722', hazard: true, hardness: 40, tool: 'pickaxe', animated: true, requiredTier: 2 },
             63: { name: 'Water', color: '#0f5e9c', stroke: '#083d66', hardness: 9999, animated: true, fluid: true, type: 'water' },
             64: { name: 'Bucket', color: '#9e9e9e', stroke: '#616161', item: true, type: 'bucket' },
             65: { name: 'Water Bucket', color: '#9e9e9e', stroke: '#0f5e9c', item: true, type: 'bucket_water' },
@@ -499,12 +502,15 @@
             { pattern: [[7, 7, 7], [null, 15, null], [null, 15, null]], result: 19, amount: 1 },
             { pattern: [[10, 10, 10], [null, 15, null], [null, 15, null]], result: 16, amount: 1 },
             { pattern: [[31, 31, 31], [null, 15, null], [null, 15, null]], result: 22, amount: 1 },
+            { pattern: [[33, 33, 33], [null, 15, null], [null, 15, null]], result: 82, amount: 1 },
             { pattern: [[10], [15], [15]], result: 17, amount: 1 },
             { pattern: [[7], [15], [15]], result: 20, amount: 1 },
             { pattern: [[31], [15], [15]], result: 23, amount: 1 },
+            { pattern: [[33], [15], [15]], result: 83, amount: 1 },
             { pattern: [[10, 10], [10, 15], [null, 15]], result: 18, amount: 1 },
             { pattern: [[7, 7], [7, 15], [null, 15]], result: 21, amount: 1 },
             { pattern: [[31, 31], [31, 15], [null, 15]], result: 24, amount: 1 },
+            { pattern: [[33, 33], [33, 15], [null, 15]], result: 84, amount: 1 },
             { pattern: [[null, 32, null], [32, 15, 32], [null, 32, null]], result: 11, amount: 1 },
             { pattern: [[31, null, 31], [null, 31, null]], result: 64, amount: 1 },
             { pattern: [[30], [15]], result: 1, amount: 1 }, 
@@ -953,8 +959,10 @@
             } else cursor.style.display = 'none';
         }
 
+        const TIER_NAMES = ["Hand", "Wood", "Stone", "Iron", "Diamond"];
         function updateTooltip() {
             let tooltipText = "";
+            let subText = "";
             const el = document.elementFromPoint(mouse.x, mouse.y);
             const invSlot = el?.closest('.mc-slot');
             const hudSlot = el?.closest('.hud-slot');
@@ -978,11 +986,24 @@
                 const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
                 const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
                 const blockId = worlds[currentDimension][`${wx},${wy}`];
-                if (blockId) tooltipText = BLOCK_TYPES[blockId]?.name || "";
+                if (blockId) {
+                    const block = BLOCK_TYPES[blockId];
+                    tooltipText = block.name;
+                    if (block.requiredTier) {
+                        const activeItem = hotbarInventory[activeHotbarIndex];
+                        const tool = activeItem ? BLOCK_TYPES[activeItem.id] : null;
+                        const hasRequired = (tool?.toolType === block.tool && tool?.tier >= block.requiredTier);
+                        if (!hasRequired && player.gameMode !== 'creative') {
+                            subText = `\nREQUIRES: ${TIER_NAMES[block.requiredTier]} ${block.tool.toUpperCase()}`;
+                        }
+                    }
+                }
             }
             if (tooltipText) {
-                itemTooltipEl.innerText = tooltipText; itemTooltipEl.style.display = 'block';
-                itemTooltipEl.style.left = (mouse.x + 20) + 'px'; itemTooltipEl.style.top = (mouse.y - 30) + 'px';
+                itemTooltipEl.innerText = tooltipText + subText; 
+                itemTooltipEl.style.display = 'block';
+                itemTooltipEl.style.color = subText ? '#ff4d4d' : '#fff';
+                itemTooltipEl.style.left = (mouse.x + 20) + 'px'; itemTooltipEl.style.top = (mouse.y - 40) + 'px';
             } else itemTooltipEl.style.display = 'none';
         }
 
@@ -1149,14 +1170,26 @@
             if (player.gameMode === 'creative') return 9999;
             const activeItem = hotbarInventory[activeHotbarIndex];
             if (!miningTarget) return 1;
-            const targetBlock = worlds[currentDimension][miningTarget.key];
-            if (!targetBlock || targetBlock === 6 || targetBlock === 63) return 0; 
-            const block = BLOCK_TYPES[targetBlock]; if (block.id === 29) return 0;
+            const targetBlockId = worlds[currentDimension][miningTarget.key];
+            if (!targetBlockId || targetBlockId === 6 || targetBlockId === 63) return 0; 
+            const block = BLOCK_TYPES[targetBlockId]; if (block.id === 29) return 0;
+            
             let speed = 1.0; 
-            if (activeItem) {
-                const tool = BLOCK_TYPES[activeItem.id];
-                if (tool?.toolType && block.tool === tool.toolType) speed = 1.0 + (tool.tier * 2.5); 
+            const tool = activeItem ? BLOCK_TYPES[activeItem.id] : null;
+            
+            // Check Tier requirement
+            if (block.requiredTier) {
+                if (!tool || tool.toolType !== block.tool || tool.tier < block.requiredTier) {
+                    return 0; // Effectively unbreakable without required tool
+                }
             }
+            
+            if (tool && tool.toolType === block.tool) {
+                speed = 1.0 + (tool.tier * 2.5); 
+            } else if (block.tool) {
+                speed = 0.3; // Very slow without correct tool type
+            }
+            
             return speed;
         }
 
@@ -1255,7 +1288,7 @@
                 if (targetBlock && !BLOCK_TYPES[targetBlock].fluid) {
                     if (miningTarget?.key === key) {
                         miningProgress += getMiningSpeed(); const block = BLOCK_TYPES[targetBlock];
-                        if (Math.random() < 0.3) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1);
+                        if (Math.random() < 0.3 && getMiningSpeed() > 0) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1);
                         if (miningProgress >= block.hardness) { 
                             if (player.gameMode !== 'creative') addItemToInventory(block.dropId || block.drop || targetBlock, 1); 
                             createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8);
