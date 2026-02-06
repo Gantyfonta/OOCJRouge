@@ -537,7 +537,7 @@
             { pattern: [[7, 7], [7, 15], [null, 15]], result: 21, amount: 1 },
             { pattern: [[31, 31], [31, 15], [null, 15]], result: 24, amount: 1 },
             { pattern: [[33, 33], [33, 15], [null, 15]], result: 84, amount: 1 },
-            { pattern: [[null, 32, null], [32, 15, 32], [null, 32, null]], result: 11, amount: 1 },
+            { pattern: [[null, 32, null], [32, 34, 32], [null, 32, null]], result: 11, amount: 1 },
             { pattern: [[31, null, 31], [null, 31, null]], result: 64, amount: 1 },
             { pattern: [[58, 31]], result: 59, amount: 1 }
         ];
@@ -1210,9 +1210,17 @@
                     if (y === WORLD_HEIGHT - 1) type = 29;
                     else if (y > surfaceY) {
                         type = 2; // Dirt
-                        if (y > surfaceY + 3) type = 3; // Stone
-                        if (y > surfaceY + 12 && Math.random() < 0.1) type = 13; // Ores
-                        if (y > surfaceY + 15 && Math.random() < 0.05) type = 14; // Iron
+                        if (y > surfaceY + 3) {
+                            type = 3; // Stone
+                            // Natural Ore Spawning
+                            const depth = y - surfaceY;
+                            const r = Math.random();
+                            if (depth > 60 && r < 0.015) type = 26; // Diamond Ore (Deepest)
+                            else if (depth > 45 && r < 0.035) type = 27; // Redstone Ore
+                            else if (depth > 35 && r < 0.04) type = 25; // Gold Ore
+                            else if (depth > 20 && r < 0.07) type = 14; // Iron Ore
+                            else if (depth > 10 && r < 0.12) type = 13; // Coal Ore
+                        }
                     } else if (y >= seaLevel && !world[`${x},${y}`]) type = 63;
                     if (type) world[`${x},${y}`] = type;
                 }
@@ -1233,10 +1241,21 @@
         function generateNether() {
             const world = worlds.nether; const seed = Math.random() * 2000;
             for (let x = 0; x < WORLD_WIDTH; x++) {
+                // Ceiling and Floor
                 for(let y=0; y<5; y++) world[`${x},${y}`] = 51;
                 for(let y=WORLD_HEIGHT-5; y<WORLD_HEIGHT; y++) world[`${x},${y}`] = 51;
+                // Lava ocean
                 for(let y=WORLD_HEIGHT-10; y<WORLD_HEIGHT-5; y++) world[`${x},${y}`] = 6;
-                for (let y = 10; y < WORLD_HEIGHT - 15; y++) { if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) world[`${x},${y}`] = 51; }
+                // Main terrain
+                for (let y = 5; y < WORLD_HEIGHT - 10; y++) { 
+                    if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) {
+                        world[`${x},${y}`] = 51; // Netherrack
+                        // Natural Glowstone clusters
+                        if (Math.random() < 0.02) world[`${x},${y}`] = 52;
+                        // Natural Gold Ore in nether
+                        if (Math.random() < 0.01) world[`${x},${y}`] = 25;
+                    } 
+                }
             }
         }
 
