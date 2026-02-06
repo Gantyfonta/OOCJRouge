@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: The Alchemical Update</title>
+    <title>Moinkcraft: The Fluid Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -422,12 +422,11 @@
         const TICKS_PER_SECOND = 20;
         const TICK_TIME = 1000 / TICKS_PER_SECOND;
         
-        // Fluid & Physics Constants
         const GRAVITY = 1.8; 
         const FRICTION = 0.65; 
         const SPEED = 8.0; 
         const SPRINT_SPEED = 14.0; 
-        const JUMP = -32; 
+        const JUMP = -16; 
         const MAX_HEALTH = 10;
         const INVULN_TIME = 15; 
         const WORLD_WIDTH = 100;
@@ -487,9 +486,9 @@
             60: { name: 'Nether Portal', color: '#6a1b9a', stroke: '#4a148c', hardness: 999, animated: true, teleport: true },
             61: { name: 'Soul Sand', color: '#5d4037', stroke: '#3e2723', hardness: 15, tool: 'shovel' },
             62: { name: 'Magma', color: '#bf360c', stroke: '#ff5722', hazard: true, hardness: 40, tool: 'pickaxe', animated: true },
-            63: { name: 'Water', color: 'rgba(33, 150, 243, 0.7)', stroke: '#1976d2', hardness: 9999, animated: true, fluid: true, type: 'water' },
+            63: { name: 'Water', color: '#0f5e9c', stroke: '#083d66', hardness: 9999, animated: true, fluid: true, type: 'water' },
             64: { name: 'Bucket', color: '#9e9e9e', stroke: '#616161', item: true, type: 'bucket' },
-            65: { name: 'Water Bucket', color: '#9e9e9e', stroke: '#2196f3', item: true, type: 'bucket_water' },
+            65: { name: 'Water Bucket', color: '#9e9e9e', stroke: '#0f5e9c', item: true, type: 'bucket_water' },
             66: { name: 'Lava Bucket', color: '#9e9e9e', stroke: '#ff5722', item: true, type: 'bucket_lava' }
         };
 
@@ -834,7 +833,7 @@
                 drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)' });
             } else if (block.type?.includes('bucket')) {
                 drawShape({ width: '22px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)', top: '10px' });
-                if (block.type === 'bucket_water') drawShape({ width: '16px', height: '8px', background: '#2196f3', top: '12px', left: '7px' });
+                if (block.type === 'bucket_water') drawShape({ width: '16px', height: '8px', background: '#0f5e9c', top: '12px', left: '7px' });
                 if (block.type === 'bucket_lava') drawShape({ width: '16px', height: '8px', background: '#ff5722', top: '12px', left: '7px' });
             } else if (block.toolType) {
                 drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
@@ -1016,7 +1015,7 @@
                 }
                 // Placement Bucket logic
                 if (activeItem && (activeItem.id === 65 || activeItem.id === 66)) {
-                    if (!world[key]) {
+                    if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { // Overwrite fluid
                         world[key] = (activeItem.id === 65 ? 63 : 6);
                         activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
                         addItemToInventory(64, 1); updateHUD(); return;
@@ -1024,7 +1023,7 @@
                 }
                 if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; }
                 if (world[key] && BLOCK_TYPES[world[key]].table) { toggleInventory(true); return; }
-                if (activeItem && !world[key] && !BLOCK_TYPES[activeItem.id].item) {
+                if (activeItem && (!world[key] || BLOCK_TYPES[world[key]]?.fluid) && !BLOCK_TYPES[activeItem.id].item) {
                     const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE };
                     if (!checkOverlap(player, rect)) { 
                         world[key] = activeItem.id;
@@ -1096,7 +1095,6 @@
                     const k = `${x},${y}`;
                     if(world[k] === 2 && !world[`${x},${y-1}`]) {
                         world[k] = 1;
-                        // Spontaneous Trees
                         if (Math.random() < 0.1) spawnTree(x, y - 1);
                         break;
                     }
@@ -1111,7 +1109,6 @@
                 const logK = `${x},${y-i}`;
                 if(!world[logK]) world[logK] = 4;
             }
-            // Leaves
             for(let lx=-2; lx<=2; lx++) {
                 for(let ly=-2; ly<=0; ly++) {
                     const leafK = `${x+lx},${y-height+ly}`;
@@ -1153,7 +1150,7 @@
             const activeItem = hotbarInventory[activeHotbarIndex];
             if (!miningTarget) return 1;
             const targetBlock = worlds[currentDimension][miningTarget.key];
-            if (!targetBlock || targetBlock === 6 || targetBlock === 63) return 0; // Can't mine fluids
+            if (!targetBlock || targetBlock === 6 || targetBlock === 63) return 0; 
             const block = BLOCK_TYPES[targetBlock]; if (block.id === 29) return 0;
             let speed = 1.0; 
             if (activeItem) {
@@ -1177,61 +1174,51 @@
             if (player.invuln > 0) player.invuln--;
             const world = worlds[currentDimension];
 
-            // Fluid Physics and Chemistry
             fluidTimer++;
-            if (fluidTimer >= 6) {
+            if (fluidTimer >= 5) {
                 fluidTimer = 0;
                 const fluidKeys = Object.keys(world).filter(k => BLOCK_TYPES[world[k]]?.fluid);
-                // Sort keys to update from bottom up to prevent "levitating" water
                 fluidKeys.sort((a, b) => b.split(',')[1] - a.split(',')[1]);
 
                 for (const k of fluidKeys) {
                     const [wx, wy] = k.split(',').map(Number);
                     const selfType = world[k];
-                    
-                    // Downwards flow
                     const belowKey = `${wx},${wy+1}`;
                     const targetBelow = world[belowKey];
 
-                    // Interaction Check
-                    const checkNeighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
+                    // Reactions
+                    const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
                     let transformed = false;
-                    for (const [nx, ny] of checkNeighbors) {
+                    for (const [nx, ny] of neighbors) {
                         const neighborK = `${nx},${ny}`;
                         const neighborT = world[neighborK];
                         if (!neighborT) continue;
-
-                        // Water touches Lava
                         if ((selfType === 63 && neighborT === 6) || (selfType === 6 && neighborT === 63)) {
-                            // If water is ABOVE lava
-                            if (selfType === 63 && neighborK === belowKey) {
-                                world[neighborK] = 28; // Lava turns to Obsidian
-                                transformed = true;
-                                break;
-                            } else if (selfType === 6 && k === `${nx},${ny+1}`) {
-                                world[k] = 28; // Lava turns to Obsidian
-                                transformed = true;
-                                break;
-                            } else {
-                                // Side touch = Cobblestone
+                            if (selfType === 63 && neighborK === belowKey) { world[neighborK] = 28; transformed = true; break; }
+                            else if (selfType === 6 && k === `${nx},${ny+1}`) { world[k] = 28; transformed = true; break; }
+                            else {
                                 if (selfType === 63) { delete world[k]; world[k] = 7; }
                                 else { delete world[neighborK]; world[neighborK] = 7; }
-                                transformed = true;
-                                break;
+                                transformed = true; break;
                             }
                         }
                     }
                     if (transformed) continue;
 
-                    // Normal flow logic
-                    if (wy + 1 < WORLD_HEIGHT && !targetBelow) {
-                        world[belowKey] = selfType; // Downward spread
+                    // Finite Movement (Pooling logic)
+                    if (wy + 1 < WORLD_HEIGHT && (!targetBelow || BLOCK_TYPES[targetBelow]?.fluid)) {
+                        // Only move into air or replace fluids if they are different
+                        if (!targetBelow) {
+                            delete world[k];
+                            world[belowKey] = selfType;
+                        }
                     } else if (wy + 1 < WORLD_HEIGHT) {
-                        // Horizontal spread
-                        const dirs = [1, -1];
+                        // Spread sideways to find holes
+                        const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1];
                         for (let d of dirs) {
                             const sideKey = `${wx+d},${wy}`;
                             if (wx+d >= 0 && wx+d < WORLD_WIDTH && !world[sideKey]) {
+                                delete world[k];
                                 world[sideKey] = selfType;
                                 break;
                             }
@@ -1244,7 +1231,6 @@
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE);
             const py = Math.floor((player.y + player.h/2) / TILE_SIZE);
             
-            // Dimension Teleport
             if (world[`${px},${py}`] === 60) {
                 teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; 
                 if (teleportTimer >= 20) {
@@ -1262,7 +1248,6 @@
                 }
             } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
 
-            // Mining
             if (mouse.down) {
                 const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
                 const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
@@ -1280,7 +1265,6 @@
                 } else { miningTarget = null; miningProgress = 0; }
             } else { miningTarget = null; miningProgress = 0; }
 
-            // Movement
             let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED;
             if (player.isFlying) curSpeed *= 1.5;
             const inFluid = BLOCK_TYPES[world[`${px},${py}`]]?.fluid;
@@ -1330,19 +1314,27 @@
         function drawBlock(x, y, type) {
             const b = BLOCK_TYPES[type]; if(!b) return;
             const tx = x * TILE_SIZE; const ty = y * TILE_SIZE; const time = Date.now() / 300;
+            const world = worlds[currentDimension];
+
             ctx.fillStyle = b.color;
             if (b.animated) {
                 if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`;
                 else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`;
                 else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`;
-                else if (type === 63) ctx.fillStyle = `rgba(33, 150, 243, ${0.6 + Math.sin(time + x) * 0.2})`;
+                else if (type === 63) ctx.fillStyle = b.color;
             }
             
-            // Draw fluid block with special handling for visibility
             if (b.fluid) {
-                ctx.fillRect(tx, ty + 5, TILE_SIZE, TILE_SIZE - 5); // Fluid usually doesn't fill the top pixel
-                ctx.fillStyle = (type === 63 ? '#1976d2' : '#bf360c');
-                ctx.fillRect(tx, ty + 5 + Math.sin(time + x) * 2, TILE_SIZE, 2);
+                const above = world[`${x},${y-1}`];
+                const isSubmerged = (above === type);
+                
+                if (isSubmerged) {
+                    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                } else {
+                    ctx.fillRect(tx, ty + 6, TILE_SIZE, TILE_SIZE - 6);
+                    ctx.fillStyle = (type === 63 ? '#166fb8' : '#ff7043');
+                    ctx.fillRect(tx, ty + 6 + Math.sin(time + x) * 2, TILE_SIZE, 3);
+                }
             } else {
                 ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
             }
