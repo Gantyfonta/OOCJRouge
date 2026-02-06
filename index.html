@@ -571,6 +571,7 @@
         let keys = {};
         let mouse = { x: 0, y: 0, down: false, rightDown: false };
         let particles = [];
+        let itemEntities = [];
 
         let lastTimestamp = 0;
         let tickAccumulator = 0;
@@ -686,7 +687,7 @@
             player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
             currentDimension = data.player.dimension || 'overworld';
             mainInventory = data.inventory.main; hotbarInventory = data.inventory.hotbar;
-            player.isFlying = false; updateHUD(); updateHeartsUI();
+            player.isFlying = false; updateHUD(); updateHeartsUI(); itemEntities = [];
         }
 
         function startNewWorld(mode = 'survival') {
@@ -700,7 +701,7 @@
             while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++;
             player.x = startX * TILE_SIZE; player.y = (startY - 2) * TILE_SIZE;
             player.health = MAX_HEALTH; player.gameMode = mode;
-            currentDimension = 'overworld'; updateHUD(); updateHeartsUI(); saveGame();
+            currentDimension = 'overworld'; updateHUD(); updateHeartsUI(); saveGame(); itemEntities = [];
         }
 
         function showSaveIndicator() {
@@ -714,6 +715,20 @@
                     x, y, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 5, color, life: 30 + Math.random() * 20
                 });
             }
+        }
+
+        function spawnDroppedItem(id, x, y) {
+            itemEntities.push({
+                id: id,
+                x: x + TILE_SIZE / 4,
+                y: y + TILE_SIZE / 4,
+                vx: (Math.random() - 0.5) * 6,
+                vy: -Math.random() * 8 - 2,
+                w: 16,
+                h: 16,
+                collectDelay: 20, // Ticks before player can pick it up
+                bob: Math.random() * Math.PI * 2
+            });
         }
 
         function setupTitleParticles() {
@@ -823,37 +838,40 @@
             updateHUD();
         }
 
-        function createItemVisual(id, count) {
+        function createItemVisual(id, count, scale = 1) {
             const block = BLOCK_TYPES[id];
             if (!block) return document.createElement('div');
             const container = document.createElement('div'); container.className = 'block-icon';
             const drawShape = (style) => {
-                const div = document.createElement('div'); Object.assign(div.style, style, { position: 'absolute' }); container.appendChild(div);
+                const div = document.createElement('div'); 
+                Object.assign(div.style, style, { position: 'absolute' }); 
+                container.appendChild(div);
             };
 
+            const sizeMod = scale;
             if (block.type === 'ingot') {
-                drawShape({ width: '24px', height: '12px', background: block.color, border: `2px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px' });
+                drawShape({ width: (24*sizeMod)+'px', height: (12*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px' });
             } else if (block.type === 'coal') {
-                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)' });
+                drawShape({ width: (18*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)' });
             } else if (block.type === 'gem') {
-                drawShape({ width: '18px', height: '18px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)' });
+                drawShape({ width: (18*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)' });
             } else if (block.type?.includes('bucket')) {
-                drawShape({ width: '22px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)', top: '10px' });
-                if (block.type === 'bucket_water') drawShape({ width: '16px', height: '8px', background: '#0f5e9c', top: '12px', left: '7px' });
-                if (block.type === 'bucket_lava') drawShape({ width: '16px', height: '8px', background: '#ff5722', top: '12px', left: '7px' });
+                drawShape({ width: (22*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)', top: (10*sizeMod)+'px' });
+                if (block.type === 'bucket_water') drawShape({ width: (16*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#0f5e9c', top: (12*sizeMod)+'px', left: (7*sizeMod)+'px' });
+                if (block.type === 'bucket_lava') drawShape({ width: (16*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#ff5722', top: (12*sizeMod)+'px', left: (7*sizeMod)+'px' });
             } else if (block.toolType) {
-                drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
-                if (block.toolType === 'pickaxe') drawShape({ width: '28px', height: '8px', background: block.color, border: `2px solid ${block.stroke}`, top: '4px' });
-                else if (block.toolType === 'shovel') drawShape({ width: '14px', height: '14px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', borderRadius: '50%' });
-                else if (block.toolType === 'axe') drawShape({ width: '18px', height: '18px', background: block.color, border: `2px solid ${block.stroke}`, top: '2px', left: '4px' });
+                drawShape({ width: (4*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
+                if (block.toolType === 'pickaxe') drawShape({ width: (28*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (4*sizeMod)+'px' });
+                else if (block.toolType === 'shovel') drawShape({ width: (14*sizeMod)+'px', height: (14*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (2*sizeMod)+'px', borderRadius: '50%' });
+                else if (block.toolType === 'axe') drawShape({ width: (18*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (2*sizeMod)+'px', left: (4*sizeMod)+'px' });
             } else if (id === 15) {
-                drawShape({ width: '4px', height: '24px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
+                drawShape({ width: (4*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
             } else if (block.item) {
-                drawShape({ width: '20px', height: '20px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '50%' });
+                drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '50%' });
             } else {
-                drawShape({ width: '30px', height: '30px', backgroundColor: block.color, border: `2px solid ${block.stroke}`, borderRadius: '2px' });
+                drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px' });
                 if (block.ore) {
-                    for(let i=0; i<3; i++) drawShape({ width: '6px', height: '6px', background: block.ore, left: (Math.random()*20)+'px', top: (Math.random()*20)+'px' });
+                    for(let i=0; i<3; i++) drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: block.ore, left: (Math.random()*20*sizeMod)+'px', top: (Math.random()*20*sizeMod)+'px' });
                 }
             }
             if (count > 1) { 
@@ -1240,25 +1258,71 @@
 
                     // Finite Movement (Pooling logic)
                     if (wy + 1 < WORLD_HEIGHT && (!targetBelow || BLOCK_TYPES[targetBelow]?.fluid)) {
-                        // Only move into air or replace fluids if they are different
-                        if (!targetBelow) {
-                            delete world[k];
-                            world[belowKey] = selfType;
-                        }
+                        if (!targetBelow) { delete world[k]; world[belowKey] = selfType; }
                     } else if (wy + 1 < WORLD_HEIGHT) {
-                        // Spread sideways to find holes
                         const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1];
                         for (let d of dirs) {
                             const sideKey = `${wx+d},${wy}`;
-                            if (wx+d >= 0 && wx+d < WORLD_WIDTH && !world[sideKey]) {
-                                delete world[k];
-                                world[sideKey] = selfType;
-                                break;
-                            }
+                            if (wx+d >= 0 && wx+d < WORLD_WIDTH && !world[sideKey]) { delete world[k]; world[sideKey] = selfType; break; }
                         }
                     }
                 }
             }
+
+            // Update item entities
+            itemEntities = itemEntities.filter(item => {
+                item.vy += 0.8; // Gravity
+                item.vx *= 0.95; // Friction
+                
+                // Attraction to player
+                const dx = (player.x + player.w/2) - (item.x + item.w/2);
+                const dy = (player.y + player.h/2) - (item.y + item.h/2);
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (item.collectDelay > 0) item.collectDelay--;
+                
+                if (dist < 120 && item.collectDelay <= 0) {
+                    const magnetStr = 1.5;
+                    item.vx += (dx / dist) * magnetStr;
+                    item.vy += (dy / dist) * magnetStr;
+                    // Cap velocity while attracting
+                    const speed = Math.sqrt(item.vx*item.vx + item.vy*item.vy);
+                    if (speed > 12) { item.vx = (item.vx/speed)*12; item.vy = (item.vy/speed)*12; }
+                }
+
+                item.x += item.vx;
+                // Resolve item world collision X
+                let x1 = Math.floor(item.x / TILE_SIZE), x2 = Math.floor((item.x + item.w) / TILE_SIZE);
+                let y1 = Math.floor(item.y / TILE_SIZE), y2 = Math.floor((item.y + item.h) / TILE_SIZE);
+                for(let x=x1; x<=x2; x++) for(let y=y1; y<=y2; y++) {
+                    const t = world[`${x},${y}`];
+                    if (t && !BLOCK_TYPES[t].fluid && !BLOCK_TYPES[t].teleport) {
+                        if (item.vx > 0) item.x = x * TILE_SIZE - item.w; else item.x = (x+1) * TILE_SIZE;
+                        item.vx *= -0.5; // Bounce
+                    }
+                }
+
+                item.y += item.vy;
+                // Resolve item world collision Y
+                x1 = Math.floor(item.x / TILE_SIZE), x2 = Math.floor((item.x + item.w) / TILE_SIZE);
+                y1 = Math.floor(item.y / TILE_SIZE), y2 = Math.floor((item.y + item.h) / TILE_SIZE);
+                for(let x=x1; x<=x2; x++) for(let y=y1; y<=y2; y++) {
+                    const t = world[`${x},${y}`];
+                    if (t && !BLOCK_TYPES[t].fluid && !BLOCK_TYPES[t].teleport) {
+                        if (item.vy > 0) item.y = y * TILE_SIZE - item.h; else item.y = (y+1) * TILE_SIZE;
+                        item.vy *= -0.5; // Bounce
+                        item.vx *= 0.8; // Friction on ground
+                    }
+                }
+
+                if (dist < 20 && item.collectDelay <= 0) {
+                    if (addItemToInventory(item.id, 1)) {
+                        createParticles(item.x + 8, item.y + 8, '#ffffff', 3);
+                        updateHUD(); return false; 
+                    }
+                }
+                return true;
+            });
 
             particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE);
@@ -1277,7 +1341,7 @@
                         while(!targetWorld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++;
                         player.y = (startY - 2) * TILE_SIZE;
                     }
-                    updateHUD(); saveGame();
+                    updateHUD(); saveGame(); itemEntities = [];
                 }
             } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
 
@@ -1290,9 +1354,11 @@
                         miningProgress += getMiningSpeed(); const block = BLOCK_TYPES[targetBlock];
                         if (Math.random() < 0.3 && getMiningSpeed() > 0) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1);
                         if (miningProgress >= block.hardness) { 
-                            if (player.gameMode !== 'creative') addItemToInventory(block.dropId || block.drop || targetBlock, 1); 
+                            if (player.gameMode !== 'creative') {
+                                spawnDroppedItem(block.dropId || block.drop || parseInt(targetBlock), wx * TILE_SIZE, wy * TILE_SIZE);
+                            }
                             createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8);
-                            delete world[key]; updateHUD(); miningTarget = null; miningProgress = 0; 
+                            delete world[key]; miningTarget = null; miningProgress = 0; 
                         }
                     } else { miningTarget = { wx, wy, key }; miningProgress = 0; }
                 } else { miningTarget = null; miningProgress = 0; }
@@ -1344,10 +1410,19 @@
             }
         }
 
-        function drawBlock(x, y, type) {
+        function drawBlock(x, y, type, scale = 1, offsetX = 0, offsetY = 0, rot = 0) {
             const b = BLOCK_TYPES[type]; if(!b) return;
-            const tx = x * TILE_SIZE; const ty = y * TILE_SIZE; const time = Date.now() / 300;
+            const size = TILE_SIZE * scale;
+            const tx = x * TILE_SIZE + offsetX; const ty = y * TILE_SIZE + offsetY; 
+            const time = Date.now() / 300;
             const world = worlds[currentDimension];
+
+            ctx.save();
+            if (rot !== 0) {
+                ctx.translate(tx + size/2, ty + size/2);
+                ctx.rotate(rot);
+                ctx.translate(-(tx + size/2), -(ty + size/2));
+            }
 
             ctx.fillStyle = b.color;
             if (b.animated) {
@@ -1357,41 +1432,39 @@
                 else if (type === 63) ctx.fillStyle = b.color;
             }
             
-            if (b.fluid) {
+            if (b.fluid && scale === 1) {
                 const above = world[`${x},${y-1}`];
                 const isSubmerged = (above === type);
-                
-                if (isSubmerged) {
-                    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-                } else {
-                    ctx.fillRect(tx, ty + 6, TILE_SIZE, TILE_SIZE - 6);
+                if (isSubmerged) ctx.fillRect(tx, ty, size, size);
+                else {
+                    ctx.fillRect(tx, ty + 6, size, size - 6);
                     ctx.fillStyle = (type === 63 ? '#166fb8' : '#ff7043');
-                    ctx.fillRect(tx, ty + 6 + Math.sin(time + x) * 2, TILE_SIZE, 3);
+                    ctx.fillRect(tx, ty + 6 + Math.sin(time + x) * 2, size, 3);
                 }
             } else {
-                ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                ctx.fillRect(tx, ty, size, size);
             }
 
             if (type === 1) { 
-                ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, TILE_SIZE, 8);
-                ctx.fillRect(tx, ty+8, 4, 4); ctx.fillRect(tx+12, ty+8, 8, 4); ctx.fillRect(tx+28, ty+8, 6, 4);
+                ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, size, 8 * scale);
+                ctx.fillRect(tx, ty + 8*scale, 4*scale, 4*scale); ctx.fillRect(tx+12*scale, ty+8*scale, 8*scale, 4*scale); ctx.fillRect(tx+28*scale, ty+8*scale, 6*scale, 4*scale);
             } else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian') {
-                ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(tx+4, ty+4, 8, 8); ctx.fillRect(tx+20, ty+18, 12, 12);
-                ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25, ty+5, 6, 6); ctx.fillRect(tx+8, ty+25, 10, 10);
+                ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(tx+4*scale, ty+4*scale, 8*scale, 8*scale); ctx.fillRect(tx+20*scale, ty+18*scale, 12*scale, 12*scale);
+                ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25*scale, ty+5*scale, 6*scale, 6*scale); ctx.fillRect(tx+8*scale, ty+25*scale, 10*scale, 10*scale);
             }
             if (b.ore) {
-                ctx.fillStyle = b.ore; ctx.fillRect(tx+6, ty+8, 6, 6); ctx.fillRect(tx+24, ty+14, 8, 8); ctx.fillRect(tx+10, ty+26, 6, 6);
+                ctx.fillStyle = b.ore; ctx.fillRect(tx+6*scale, ty+8*scale, 6*scale, 6*scale); ctx.fillRect(tx+24*scale, ty+14*scale, 8*scale, 8*scale); ctx.fillRect(tx+10*scale, ty+26*scale, 6*scale, 6*scale);
             }
             if (type === 11) { 
-                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + TILE_SIZE/2, ty + TILE_SIZE/2, TILE_SIZE/2.5, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(tx + TILE_SIZE/2, ty + TILE_SIZE/2);
-                ctx.lineTo(tx + TILE_SIZE/2 + Math.cos(time)*10, ty + TILE_SIZE/2 + Math.sin(time)*10); ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + size/2, ty + size/2, size/2.5, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * scale; ctx.beginPath(); ctx.moveTo(tx + size/2, ty + size/2);
+                ctx.lineTo(tx + size/2 + Math.cos(time)*10*scale, ty + size/2 + Math.sin(time)*10*scale); ctx.stroke();
             }
-            if (!b.fluid) {
-              ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2; ctx.strokeRect(tx+1, ty+1, TILE_SIZE-2, TILE_SIZE-2);
-              ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            if (!b.fluid || scale !== 1) {
+              ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale);
+              ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size);
             }
-            if (miningTarget?.wx === x && miningTarget?.wy === y) {
+            if (miningTarget?.wx === x && miningTarget?.wy === y && scale === 1) {
                 const stage = Math.floor((miningProgress / b.hardness) * 5);
                 if (stage > 0) {
                     ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
@@ -1401,6 +1474,7 @@
                     }
                 }
             }
+            ctx.restore();
         }
 
         function draw() {
@@ -1412,6 +1486,15 @@
                 const v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1);
                 for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]);
             }
+            
+            // Draw item entities
+            itemEntities.forEach(item => {
+                const bob = Math.sin(Date.now() / 200 + item.bob) * 5;
+                const rot = (Date.now() / 1000) % (Math.PI * 2);
+                // We use drawBlock but calculate tile coordinates differently to center it
+                drawBlock(0, 0, item.id, 0.5, item.x, item.y + bob, rot);
+            });
+
             particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50; ctx.fillRect(p.x, p.y, 6, 6); });
             ctx.globalAlpha = 1;
             if (!player.dead && player.invuln % 6 < 3) {
