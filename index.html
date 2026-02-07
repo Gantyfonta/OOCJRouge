@@ -1,15 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: Multiplayer Update</title>
+    <title>Moinkcraft: Multiplayer Cleanup Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, push, onChildAdded, onChildChanged, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update as fireUpdate, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDXUJ2ooY5S_pR2liDGe-afRZhNo0RI8Zs",
@@ -25,7 +24,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         window.m_db = db;
-        window.m_refs = { ref, set, onValue, update, push, onChildAdded, onChildChanged, onChildRemoved };
+        window.m_refs = { ref, set, onValue, fireUpdate, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect };
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -772,7 +771,7 @@
             isLanHost = true;
             isLanClient = false;
 
-            const { ref, set } = window.m_refs;
+            const { ref, set, onDisconnect } = window.m_refs;
             const sessionRef = ref(window.m_db, `sessions/${code}`);
             
             set(sessionRef, {
@@ -780,6 +779,9 @@
                 gameTime: gameTime,
                 hostId: myPlayerId
             });
+
+            // If host disconnects unexpectedly, remove the session
+            onDisconnect(sessionRef).remove();
 
             document.getElementById('lan-code-display').style.display = 'block';
             document.getElementById('code-val').innerText = code;
@@ -793,6 +795,8 @@
             const { ref, onChildAdded, onChildChanged, onChildRemoved, onValue } = window.m_refs;
             const playersRef = ref(window.m_db, `sessions/${code}/players`);
             const worldRef = ref(window.m_db, `sessions/${code}/world`);
+            const entitiesRef = ref(window.m_db, `sessions/${code}/tileEntities`);
+            const mobsRef = ref(window.m_db, `sessions/${code}/mobs`);
 
             onChildAdded(playersRef, (snapshot) => {
                 if (snapshot.key !== myPlayerId) otherPlayers[snapshot.key] = snapshot.val();
@@ -808,20 +812,34 @@
             onValue(worldRef, (snapshot) => {
                 const remoteWorld = snapshot.val();
                 if (remoteWorld) {
-                    worlds.overworld = remoteWorld.overworld || {};
-                    worlds.nether = remoteWorld.nether || {};
-                    worlds.the_end = remoteWorld.the_end || {};
+                    worlds = remoteWorld;
+                }
+            });
+
+            // Sync Tile Entities (Furnaces)
+            onValue(entitiesRef, (snapshot) => {
+                const remoteEntities = snapshot.val();
+                if (remoteEntities) {
+                    tileEntities = remoteEntities;
+                }
+            });
+
+            // Sync Mobs (Clients receive host simulation)
+            onValue(mobsRef, (snapshot) => {
+                if (isLanClient) {
+                    const remoteMobs = snapshot.val();
+                    if (remoteMobs) mobs = remoteMobs;
                 }
             });
         }
 
         function syncMultiplayerData() {
             if (!lanSessionCode) return;
-            const { ref, update } = window.m_refs;
+            const { ref, fireUpdate } = window.m_refs;
             
             // Sync Player Pos
             const myPlayerRef = ref(window.m_db, `sessions/${lanSessionCode}/players/${myPlayerId}`);
-            update(myPlayerRef, {
+            fireUpdate(myPlayerRef, {
                 x: player.x,
                 y: player.y,
                 facing: player.facing,
@@ -830,18 +848,22 @@
                 id: myPlayerId
             });
 
-            // If host, sync time
+            // If host, sync time, tileEntities, and mobs
             if (isLanHost) {
                 const metaRef = ref(window.m_db, `sessions/${lanSessionCode}`);
-                update(metaRef, { gameTime: gameTime });
+                fireUpdate(metaRef, { 
+                    gameTime: gameTime,
+                    tileEntities: tileEntities,
+                    mobs: mobs
+                });
             }
         }
 
         function broadcastWorldChange() {
             if (!lanSessionCode) return;
-            const { ref, update } = window.m_refs;
+            const { ref, fireUpdate } = window.m_refs;
             const worldRef = ref(window.m_db, `sessions/${lanSessionCode}/world`);
-            update(worldRef, worlds);
+            fireUpdate(worldRef, worlds);
         }
 
         function togglePauseMenu() {
@@ -852,6 +874,13 @@
 
         function saveAndQuit() {
             saveGame();
+
+            // If host, explicitly remove session from Firebase
+            if (isLanHost && lanSessionCode) {
+                const { ref, set } = window.m_refs;
+                set(ref(window.m_db, `sessions/${lanSessionCode}`), null);
+            }
+
             isPaused = false; gameStarted = false;
             pauseMenuEl.style.display = 'none';
             document.getElementById('title-screen').style.display = 'flex';
@@ -1302,7 +1331,7 @@
         }
 
         function updateMobs() {
-            if (isLanClient) return; // Only host handles mobs for sync simplicity
+            if (isLanClient) return; // Only host handles mobs simulation
             const currentMobs = mobs[currentDimension]; const world = worlds[currentDimension];
             const isNight = gameTime > 13000 && gameTime < 23000;
             const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
@@ -1479,7 +1508,8 @@
             ctx.save(); ctx.translate(-camera.x, -camera.y);
             const world = worlds[currentDimension];
             if (world) { const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1), v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1); for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]); }
-            mobs[currentDimension].forEach(drawEntity);
+            const currentMobs = mobs[currentDimension] || [];
+            currentMobs.forEach(drawEntity);
             Object.values(otherPlayers).forEach(p => { if (p.dim === currentDimension) drawEntity(p); });
             particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50; ctx.fillRect(p.x, p.y, 6, 6); }); ctx.globalAlpha = 1;
             if (player.fishing.active) { ctx.strokeStyle = '#eee'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(player.x + player.w/2, player.y + player.h/3); ctx.lineTo(player.fishing.x, player.fishing.y); ctx.stroke(); ctx.fillStyle = (player.fishing.state === 'bite') ? '#f00' : '#fff'; ctx.fillRect(player.fishing.x - 4, player.fishing.y - 4, 8, 8); ctx.fillStyle = '#f00'; ctx.fillRect(player.fishing.x - 4, player.fishing.y - 4, 8, 4); }
