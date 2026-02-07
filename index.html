@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: Chimken Loot Update</title>
+    <title>Moinkcraft: The Swords Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -525,6 +524,11 @@
             73: { name: 'Clock-Wire', color: '#e0e0e0', item: true },
             74: { name: 'Raw Chimken', color: '#ffccbc', stroke: '#d84315', item: true, type: 'food', heal: 3 },
             75: { name: 'Feather', color: '#f5f5f5', stroke: '#e0e0e0', item: true },
+            76: { name: 'Wood Sword', color: '#6d4c41', stroke: '#3e2723', item: true, toolType: 'sword', damage: 4 },
+            77: { name: 'Stone Sword', color: '#616161', stroke: '#424242', item: true, toolType: 'sword', damage: 5 },
+            78: { name: 'Iron Sword', color: '#e0e0e0', stroke: '#bdbdbd', item: true, toolType: 'sword', damage: 6 },
+            79: { name: 'Gold Sword', color: '#fff176', stroke: '#fbc02d', item: true, toolType: 'sword', damage: 5 },
+            80: { name: 'Diamond Sword', color: '#00e5ff', stroke: '#00b8d4', item: true, toolType: 'sword', damage: 8 },
             90: { name: 'End Portal', color: '#000', stroke: '#4a148c', hardness: 999, animated: true, teleport: true, toDimension: 'the_end' },
             91: { name: 'End Stone', color: '#fff9c4', stroke: '#fbc02d', hardness: 50, tool: 'pickaxe', texture: 'end_stone', requiredTier: 1 }
         };
@@ -556,7 +560,12 @@
             { pattern: [[null, 32, null], [32, 34, 32], [null, 32, null]], result: 11, amount: 1 },
             { pattern: [[31, null, 31], [null, 31, null]], result: 64, amount: 1 },
             { pattern: [[58, 31]], result: 59, amount: 1 },
-            { pattern: [[null, null, 15], [null, 15, 73], [15, null, 73]], result: 71, amount: 1 }
+            { pattern: [[null, null, 15], [null, 15, 73], [15, null, 73]], result: 71, amount: 1 },
+            { pattern: [[10], [10], [15]], result: 76, amount: 1 },
+            { pattern: [[7], [7], [15]], result: 77, amount: 1 },
+            { pattern: [[31], [31], [15]], result: 78, amount: 1 },
+            { pattern: [[32], [32], [15]], result: 79, amount: 1 },
+            { pattern: [[33], [33], [15]], result: 80, amount: 1 }
         ];
 
         const SMELTING_RECIPES = {
@@ -935,7 +944,11 @@
             };
 
             const sizeMod = scale;
-            if (id === 71) { // Rod
+            if (block.toolType === 'sword') {
+                drawShape({ width: (4*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', bottom: '4px', left: '12px' });
+                drawShape({ width: (14*sizeMod)+'px', height: (4*sizeMod)+'px', background: '#333', transform: 'rotate(-45deg)', bottom: '12px', left: '10px' });
+                drawShape({ width: (8*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-45deg)', top: '2px', left: '16px', borderRadius: '2px' });
+            } else if (id === 71) { // Rod
                 drawShape({ width: (4*sizeMod)+'px', height: (34*sizeMod)+'px', background: '#8d6e63', transform: 'rotate(25deg)' });
                 drawShape({ width: (2*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#fff', top: (5*sizeMod)+'px', left: (15*sizeMod)+'px' });
             } else if (id === 72 || id === 74) { // Fish / Chimken
@@ -1123,12 +1136,20 @@
                 }
                 else if (type === 'creative') item = { id: parseInt(invSlot.dataset.itemId) };
                 else if (invSlot.id === 'crafting-output') item = craftingOutput;
-                if (item) tooltipText = BLOCK_TYPES[item.id]?.name || "";
+                if (item) {
+                    const block = BLOCK_TYPES[item.id];
+                    tooltipText = block?.name || "";
+                    if (block?.toolType === 'sword') subText = `\nDAMAGE: ${block.damage}`;
+                }
             } else if (hudSlot) {
                 const slots = Array.from(document.querySelectorAll('.hud-slot'));
                 const idx = slots.indexOf(hudSlot);
                 const item = hotbarInventory[idx];
-                if (item) tooltipText = BLOCK_TYPES[item.id]?.name || "";
+                if (item) {
+                    const block = BLOCK_TYPES[item.id];
+                    tooltipText = block?.name || "";
+                    if (block?.toolType === 'sword') subText = `\nDAMAGE: ${block.damage}`;
+                }
             } else if (!inventoryOpen && !isPaused) {
                 const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
                 const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
@@ -1149,7 +1170,7 @@
             if (tooltipText) {
                 itemTooltipEl.innerText = tooltipText + subText; 
                 itemTooltipEl.style.display = 'block';
-                itemTooltipEl.style.color = subText ? '#ff4d4d' : '#fff';
+                itemTooltipEl.style.color = subText.includes('REQUIRES') ? '#ff4d4d' : (subText.includes('DAMAGE') ? '#aaffaa' : '#fff');
                 itemTooltipEl.style.left = (mouse.x + 20) + 'px'; itemTooltipEl.style.top = (mouse.y - 40) + 'px';
             } else itemTooltipEl.style.display = 'none';
         }
@@ -1166,13 +1187,25 @@
             const hitX = mouse.x + camera.x;
             const hitY = mouse.y + camera.y;
             const currentMobs = mobs[currentDimension];
+            
+            const activeItem = hotbarInventory[activeHotbarIndex];
+            const blockData = activeItem ? BLOCK_TYPES[activeItem.id] : null;
+            let damage = 2; // Hand damage
+            let knockback = 10;
+            
+            if (blockData?.toolType === 'sword') {
+                damage = blockData.damage;
+                knockback = 15 + (damage * 0.5);
+                createParticles(hitX, hitY, blockData.color, 3); // Sword swipe effect
+            }
+
             for(let i = currentMobs.length - 1; i >= 0; i--) {
                 const m = currentMobs[i];
                 if(hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
                     const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
                     if(dist < 150) {
-                        m.health -= 2;
-                        m.vx = (m.x - player.x) > 0 ? 10 : -10;
+                        m.health -= damage;
+                        m.vx = (m.x - player.x) > 0 ? knockback : -knockback;
                         m.vy = -5;
                         createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10);
                         if(m.health <= 0) {
