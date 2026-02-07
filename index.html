@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: Mob Madness</title>
+    <title>Moinkcraft: Time & Portals Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -378,6 +378,7 @@
                 <div id="coords" style="font-size: 10px; color: #fff; text-shadow: 2px 2px #000;">X: 0 Y: 0</div>
                 <div id="dim-indicator" style="font-size: 10px; color: #ffb6c1; text-shadow: 2px 2px #000;">Overworld</div>
                 <div id="mode-indicator" style="font-size: 7px; color: #aaa;">Survival Mode</div>
+                <div id="time-indicator" style="font-size: 7px; color: #f1c40f;">12:00 PM</div>
             </div>
             <div class="hud-anchor">
                 <div class="hearts" id="hearts-container"></div>
@@ -466,6 +467,7 @@
         const INVULN_TIME = 15; 
         const WORLD_WIDTH = 100;
         const WORLD_HEIGHT = 100;
+        const DAY_LENGTH = 24000; // Total ticks in a day
 
         const BLOCK_TYPES = {
             1: { name: 'Grass', color: '#5b8a3e', stroke: '#3e5b2e', hardness: 10, tool: 'shovel', topColor: '#76b052' },
@@ -517,13 +519,15 @@
             64: { name: 'Bucket', color: '#9e9e9e', stroke: '#616161', item: true, type: 'bucket' },
             65: { name: 'Water Bucket', color: '#9e9e9e', stroke: '#0f5e9c', item: true, type: 'bucket_water' },
             66: { name: 'Lava Bucket', color: '#9e9e9e', stroke: '#ff5722', item: true, type: 'bucket_lava' },
-            70: { name: 'Rotten Pork', color: '#556b2f', item: true }
+            70: { name: 'Rotten Pork', color: '#556b2f', item: true },
+            90: { name: 'End Portal', color: '#000', stroke: '#4a148c', hardness: 999, animated: true, teleport: true, toDimension: 'the_end' },
+            91: { name: 'End Stone', color: '#fff9c4', stroke: '#fbc02d', hardness: 50, tool: 'pickaxe', texture: 'end_stone', requiredTier: 1 }
         };
 
         const MOB_TYPES = {
-            'zombie_pig': { health: 10, speed: 3.5, behavior: 'chase', w: 34, h: 28, damage: 1, loot: 70, color: '#556b2f', stroke: '#3e4d22' },
-            'creeper_clock': { health: 8, speed: 4.5, behavior: 'explode', w: 24, h: 48, damage: 0, loot: 34, color: '#fdd835', stroke: '#f9a825' },
-            'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: null, color: '#fff', stroke: '#ccc' }
+            'zombie_pig': { health: 10, speed: 3.5, behavior: 'chase', w: 34, h: 28, damage: 1, loot: 70, color: '#556b2f', stroke: '#3e4d22', hostile: true },
+            'creeper_clock': { health: 8, speed: 4.5, behavior: 'explode', w: 24, h: 48, damage: 0, loot: 34, color: '#fdd835', stroke: '#f9a825', hostile: true },
+            'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: null, color: '#fff', stroke: '#ccc', hostile: false }
         };
 
         const RECIPES = [
@@ -571,13 +575,15 @@
         const pauseMenuEl = document.getElementById('pause-menu');
         const modeSelectionEl = document.getElementById('mode-selection-overlay');
         const itemTooltipEl = document.getElementById('item-tooltip');
+        const timeIndicatorEl = document.getElementById('time-indicator');
         
         let width, height;
         let camera = { x: 0, y: 0 };
+        let gameTime = 6000; // Start at noon
         let currentDimension = 'overworld';
-        let worlds = { overworld: {}, nether: {} };
-        let tileEntities = { overworld: {}, nether: {} };
-        let mobs = { overworld: [], nether: [] };
+        let worlds = { overworld: {}, nether: {}, the_end: {} };
+        let tileEntities = { overworld: {}, nether: {}, the_end: {} };
+        let mobs = { overworld: [], nether: [], the_end: [] };
         let teleportTimer = 0;
         let activeSaveSlot = null;
         let pendingSaveSlot = null;
@@ -727,6 +733,7 @@
                 mobs,
                 player: { x: player.x, y: player.y, health: player.health, dimension: currentDimension, gameMode: player.gameMode },
                 inventory: { main: mainInventory, hotbar: hotbarInventory },
+                gameTime: gameTime,
                 timestamp: new Date().toLocaleString()
             };
             localStorage.setItem(`moinkcraft_world_${activeSaveSlot}`, JSON.stringify(saveData));
@@ -735,20 +742,22 @@
 
         function loadGame(data) {
             worlds = data.worlds; 
-            tileEntities = data.tileEntities || { overworld: {}, nether: {} };
-            mobs = data.mobs || { overworld: [], nether: [] };
+            tileEntities = data.tileEntities || { overworld: {}, nether: {}, the_end: {} };
+            mobs = data.mobs || { overworld: [], nether: [], the_end: [] };
             player.x = data.player.x; player.y = data.player.y;
             player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
             currentDimension = data.player.dimension || 'overworld';
             mainInventory = data.inventory.main; hotbarInventory = data.inventory.hotbar;
+            gameTime = data.gameTime || 6000;
             player.isFlying = false; updateHUD(); updateHeartsUI(); 
         }
 
         function startNewWorld(mode = 'survival') {
-            worlds = { overworld: {}, nether: {} };
-            tileEntities = { overworld: {}, nether: {} };
-            mobs = { overworld: [], nether: [] };
-            generateOverworld(); generateNether();
+            worlds = { overworld: {}, nether: {}, the_end: {} };
+            tileEntities = { overworld: {}, nether: {}, the_end: {} };
+            mobs = { overworld: [], nether: [], the_end: [] };
+            gameTime = 6000;
+            generateOverworld(); generateNether(); generateEnd();
             mainInventory = new Array(27).fill(null); hotbarInventory = new Array(9).fill(null);
             
             const startX = Math.floor(WORLD_WIDTH / 2);
@@ -1208,15 +1217,28 @@
             const currentMobs = mobs[currentDimension];
             const world = worlds[currentDimension];
             
-            if (currentMobs.length < 15 && Math.random() < 0.05) {
+            const isNight = gameTime > 13000 && gameTime < 23000;
+            const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
+
+            if (currentMobs.length < 15 && Math.random() < spawnChance) {
                 const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400);
                 const sx = Math.floor(spawnX / TILE_SIZE);
                 if (sx >= 0 && sx < WORLD_WIDTH) {
                     let sy = 0;
                     while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++;
                     if (sy < WORLD_HEIGHT) {
-                        const types = currentDimension === 'overworld' ? ['zombie_pig', 'creeper_clock', 'chicken'] : ['zombie_pig', 'creeper_clock'];
-                        spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE);
+                        let types = [];
+                        if (currentDimension === 'overworld') {
+                            if (isNight) types = ['zombie_pig', 'creeper_clock'];
+                            else types = ['chicken'];
+                        } else if (currentDimension === 'nether') {
+                            types = ['zombie_pig', 'creeper_clock'];
+                        } else {
+                            types = ['creeper_clock']; // End mobs
+                        }
+                        if (types.length > 0) {
+                            spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE);
+                        }
                     }
                 }
             }
@@ -1295,8 +1317,11 @@
                 slot.className = `hud-slot ${activeHotbarIndex === i ? 'active' : ''}`;
                 if (item) slot.appendChild(createItemVisual(item.id, item.count)); hud.appendChild(slot);
             }
-            document.getElementById('dim-indicator').innerText = currentDimension === 'overworld' ? 'Overworld' : 'The Nether';
-            document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : '#ff4d4d';
+            let dimName = "Overworld";
+            if (currentDimension === 'nether') dimName = "The Nether";
+            else if (currentDimension === 'the_end') dimName = "The End";
+            document.getElementById('dim-indicator').innerText = dimName;
+            document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : (currentDimension === 'nether' ? '#ff4d4d' : '#9c27b0');
             document.getElementById('mode-indicator').innerText = player.gameMode === 'creative' ? 'Creative Mode' : 'Survival Mode';
             document.getElementById('mode-indicator').style.color = player.gameMode === 'creative' ? '#f1c40f' : '#aaa';
             heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex';
@@ -1324,7 +1349,8 @@
                             type = 3; 
                             const depth = y - surfaceY;
                             const r = Math.random();
-                            if (depth > 60 && r < 0.015) type = 26; 
+                            if (depth > 40 && r < 0.015) type = 6;
+                            else if (depth > 60 && r < 0.015) type = 26; 
                             else if (depth > 45 && r < 0.035) type = 27; 
                             else if (depth > 35 && r < 0.04) type = 25; 
                             else if (depth > 20 && r < 0.07) type = 14; 
@@ -1338,6 +1364,16 @@
                     if(world[k] === 2 && !world[`${x},${y-1}`]) { world[k] = 1; if (Math.random() < 0.1) spawnTree(x, y - 1); break; }
                 }
             }
+            const portalX = 20 + Math.floor(Math.random() * (WORLD_WIDTH - 40));
+            let portalY = WORLD_HEIGHT - 20;
+            for(let x = -2; x <= 2; x++) {
+                for(let y = -2; y <= 2; y++) {
+                    const k = `${portalX + x},${portalY + y}`;
+                    if (Math.abs(x) === 2 || Math.abs(y) === 2) world[k] = 28; 
+                    else delete world[k]; 
+                }
+            }
+            world[`${portalX},${portalY}`] = 90; 
         }
 
         function spawnTree(x, y) {
@@ -1363,11 +1399,28 @@
             }
         }
 
+        function generateEnd() {
+            const world = worlds.the_end;
+            const centerX = Math.floor(WORLD_WIDTH / 2);
+            const centerY = Math.floor(WORLD_HEIGHT / 2);
+            for(let x = centerX - 15; x <= centerX + 15; x++) {
+                for(let y = centerY - 5; y <= centerY + 5; y++) {
+                    const dx = x - centerX;
+                    const dy = y - centerY;
+                    if (dx*dx + dy*dy*9 < 200) {
+                        world[`${x},${y}`] = 91; 
+                    }
+                }
+            }
+            // Return Portal in center of End
+            world[`${centerX},${centerY-1}`] = 90;
+        }
+
         function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
         
         function takeDamage(amt) { if (player.gameMode === 'creative' || player.invuln > 0 || player.dead) return; player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); if (player.health <= 0) die(); player.vy = -12; }
         function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; saveGame(); }
-        function respawn() { player.health = MAX_HEALTH; player.dead = false; currentDimension = 'overworld'; player.x = (WORLD_WIDTH/2) * TILE_SIZE; player.y = 0; let startY = 0; while(!worlds.overworld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++; player.y = (startY - 2) * TILE_SIZE; player.isFlying = false; updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; saveGame(); mobs.overworld = []; mobs.nether = []; }
+        function respawn() { player.health = MAX_HEALTH; player.dead = false; currentDimension = 'overworld'; player.x = (WORLD_WIDTH/2) * TILE_SIZE; player.y = 0; let startY = 0; while(!worlds.overworld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++; player.y = (startY - 2) * TILE_SIZE; player.isFlying = false; updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; saveGame(); mobs.overworld = []; mobs.nether = []; mobs.the_end = []; }
 
         function getMiningSpeed() {
             if (player.gameMode === 'creative') return 9999;
@@ -1394,6 +1447,13 @@
         function update() {
             if (!gameStarted || player.dead || isPaused) return;
             if (player.invuln > 0) player.invuln--;
+            
+            // Progress Game Time
+            gameTime = (gameTime + 2) % DAY_LENGTH;
+            const hours = Math.floor((gameTime / DAY_LENGTH) * 24);
+            const minutes = Math.floor(((gameTime % (DAY_LENGTH / 24)) / (DAY_LENGTH / 24)) * 60);
+            timeIndicatorEl.innerText = `${(hours % 12 || 12).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+
             const world = worlds[currentDimension];
 
             updateMobs();
@@ -1457,7 +1517,42 @@
 
             particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE); const py = Math.floor((player.y + player.h/2) / TILE_SIZE);
-            if (world[`${px},${py}`] === 60) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld'; teleportTimer = 0; portalOverlay.style.opacity = 0; const targetWorld = worlds[currentDimension]; let found = false; for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(targetWorld[`${x},${y}`] === 60) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let startY = 0; while(!targetWorld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++; player.y = (startY - 2) * TILE_SIZE; } updateHUD(); saveGame(); } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
+            const standingOn = world[`${px},${py}`];
+            if (standingOn === 60 || standingOn === 90) {
+                teleportTimer++; 
+                portalOverlay.style.opacity = teleportTimer / 20; 
+                if (teleportTimer >= 20) {
+                    const prevDim = currentDimension;
+                    if (standingOn === 60) {
+                        currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld';
+                    } else if (standingOn === 90) {
+                        currentDimension = currentDimension === 'overworld' ? 'the_end' : 'overworld';
+                    }
+                    teleportTimer = 0; 
+                    portalOverlay.style.opacity = 0; 
+                    const targetWorld = worlds[currentDimension]; 
+                    let found = false; 
+                    const portalBlock = standingOn === 60 ? 60 : 90;
+                    // Find a portal in the target world to exit from
+                    for(let x=0; x<WORLD_WIDTH && !found; x++) {
+                        for(let y=0; y<WORLD_HEIGHT && !found; y++) {
+                            if(targetWorld[`${x},${y}`] === portalBlock) {
+                                player.x = x * TILE_SIZE; 
+                                player.y = (y-1) * TILE_SIZE; 
+                                found = true; 
+                            }
+                        }
+                    }
+                    if(!found) { 
+                        player.x = (WORLD_WIDTH/2) * TILE_SIZE; 
+                        let startY = 0; 
+                        while(!targetWorld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++; 
+                        player.y = (startY - 2) * TILE_SIZE; 
+                    } 
+                    updateHUD(); 
+                    saveGame(); 
+                } 
+            } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
             if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const targetBlock = world[key]; if (targetBlock && !BLOCK_TYPES[targetBlock].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const block = BLOCK_TYPES[targetBlock]; if (Math.random() < 0.3 && getMiningSpeed() > 0) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1); if (miningProgress >= block.hardness) { if (player.gameMode !== 'creative') { addItemToInventory(block.drop || parseInt(targetBlock), 1); updateHUD(); } createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8); delete world[key]; miningTarget = null; miningProgress = 0; } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
             let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED; if (player.isFlying) curSpeed *= 1.5; 
             const inFluid = BLOCK_TYPES[world[`${px},${py}`]]?.fluid;
@@ -1526,7 +1621,6 @@
                 ctx.fillRect(4, 0, e.w - 8, e.h - 10);
                 ctx.fillRect(0, e.h - 10, 10, 10);
                 ctx.fillRect(e.w - 10, e.h - 10, 10, 10);
-                // Clock face
                 ctx.fillStyle = '#fff';
                 ctx.beginPath();
                 ctx.arc(e.w/2, 12, 8, 0, Math.PI*2);
@@ -1541,11 +1635,10 @@
             } else if (e.type === 'chicken') {
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(4, 4, e.w-8, e.h-8);
-                ctx.fillStyle = '#f90'; // Beak
+                ctx.fillStyle = '#f90'; 
                 ctx.fillRect(e.w-6, 8, 6, 4);
-                ctx.fillStyle = '#f00'; // Comb
+                ctx.fillStyle = '#f00'; 
                 ctx.fillRect(6, 0, 4, 4);
-                // Wings
                 ctx.fillStyle = '#eee';
                 const wingW = 4 + Math.sin(e.animTimer)*2;
                 ctx.fillRect(-wingW, 8, wingW, 8);
@@ -1563,7 +1656,13 @@
             ctx.save();
             if (rot !== 0) { ctx.translate(tx + size/2, ty + size/2); ctx.rotate(rot); ctx.translate(-(tx + size/2), -(ty + size/2)); }
             ctx.fillStyle = b.color;
-            if (b.animated) { if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`; else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`; else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`; else if (type === 63) ctx.fillStyle = b.color; }
+            if (b.animated) { 
+                if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`; 
+                else if (type === 90) ctx.fillStyle = `rgb(${10 + Math.sin(time)*5}, 0, ${30 + Math.cos(time)*10})`;
+                else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`; 
+                else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`; 
+                else if (type === 63) ctx.fillStyle = b.color; 
+            }
             
             if (b.texture === 'glass') { ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, size, size); }
             else if (type === 35) {
@@ -1579,29 +1678,81 @@
             else { ctx.fillRect(tx, ty, size, size); }
 
             if (type === 1) { ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, size, 8 * scale); ctx.fillRect(tx, ty + 8*scale, 4*scale, 4*scale); ctx.fillRect(tx+12*scale, ty+8*scale, 8*scale, 4*scale); ctx.fillRect(tx+28*scale, ty+8*scale, 6*scale, 4*scale); } 
-            else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian') { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(tx+4*scale, ty+4*scale, 8*scale, 8*scale); ctx.fillRect(tx+20*scale, ty+18*scale, 12*scale, 12*scale); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25*scale, ty+5*scale, 6*scale, 6*scale); ctx.fillRect(tx+8*scale, ty+25*scale, 10*scale, 10*scale); }
+            else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian' || b.texture === 'end_stone') { 
+                ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(tx+4*scale, ty+4*scale, 8*scale, 8*scale); ctx.fillRect(tx+20*scale, ty+18*scale, 12*scale, 12*scale); 
+                ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25*scale, ty+5*scale, 6*scale, 6*scale); ctx.fillRect(tx+8*scale, ty+25*scale, 10*scale, 10*scale); 
+            }
             if (b.ore) { ctx.fillStyle = b.ore; ctx.fillRect(tx+6*scale, ty+8*scale, 6*scale, 6*scale); ctx.fillRect(tx+24*scale, ty+14*scale, 8*scale, 8*scale); ctx.fillRect(tx+10*scale, ty+26*scale, 6*scale, 6*scale); }
             if (type === 67) { 
                 ctx.fillStyle = '#333'; ctx.fillRect(tx + size*0.1, ty + size*0.1, size*0.8, size*0.3); 
                 const f = tileEntities[currentDimension][`${x},${y}`];
                 if (f && f.burnTime > 0) { ctx.fillStyle = '#ff5722'; ctx.fillRect(tx + size*0.15, ty + size*0.15, size*0.7, size*0.2); }
             }
-            if (type === 11) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + size/2, ty + size/2, size/2.5, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * scale; ctx.beginPath(); ctx.moveTo(tx + size/2, ty + size/2); ctx.lineTo(tx + size/2 + Math.cos(time)*10*scale, ty + size/2 + Math.sin(time)*10*scale); ctx.stroke(); }
-            if (!b.fluid && b.texture !== 'glass' && type !== 35) { ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size); }
+            if (type === 11) { 
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + size/2, ty + size/2, size/2.5, 0, Math.PI*2); ctx.fill(); 
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * scale; ctx.beginPath(); ctx.moveTo(tx + size/2, ty + size/2); 
+                const angle = (gameTime / DAY_LENGTH) * Math.PI * 2;
+                ctx.lineTo(tx + size/2 + Math.cos(angle)*10*scale, ty + size/2 + Math.sin(angle)*10*scale); ctx.stroke(); 
+            }
+            if (type === 90) {
+                ctx.fillStyle = '#fff';
+                for(let i=0; i<3; i++) {
+                    const sx = tx + (Math.sin(time + i)*size/2) + size/2;
+                    const sy = ty + (Math.cos(time + i)*size/2) + size/2;
+                    ctx.fillRect(sx, sy, 2, 2);
+                }
+            }
+            if (!b.fluid && b.texture !== 'glass' && type !== 35) { ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size); }
             if (miningTarget?.wx === x && miningTarget?.wy === y && scale === 1) { const stage = Math.floor((miningProgress / b.hardness) * 5); if (stage > 0) { ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3; for (let i = 0; i < stage; i++) { ctx.beginPath(); ctx.moveTo(tx+(i*8), ty); ctx.lineTo(tx+TILE_SIZE, ty+TILE_SIZE-(i*8)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(tx, ty+(i*8)); ctx.lineTo(tx+TILE_SIZE-(i*8), ty+TILE_SIZE); ctx.stroke(); } } }
             ctx.restore();
         }
 
+        function getSkyColor() {
+            if (currentDimension === 'nether') return '#1a0505';
+            if (currentDimension === 'the_end') return '#0b001a';
+            
+            const t = gameTime / DAY_LENGTH;
+            if (t < 0.2) return '#ff7043'; // Dawn
+            if (t < 0.5) return '#4a90e2'; // Day
+            if (t < 0.6) return '#fb8c00'; // Dusk
+            if (t < 0.9) return '#0a0a20'; // Night
+            return '#2a1a4a'; // Late night
+        }
+
         function draw() {
-            ctx.fillStyle = currentDimension === 'overworld' ? '#4a90e2' : '#1a0505'; ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = getSkyColor();
+            ctx.fillRect(0, 0, width, height);
+            
             ctx.save(); ctx.translate(-camera.x, -camera.y);
             const world = worlds[currentDimension];
-            if (world) { const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1), v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1); for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]); }
+            if (world) { 
+                const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1), v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1); 
+                for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]); 
+            }
             mobs[currentDimension].forEach(drawEntity);
             particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50; ctx.fillRect(p.x, p.y, 6, 6); });
             ctx.globalAlpha = 1;
-            if (!player.dead && player.invuln % 6 < 3) { ctx.save(); ctx.translate(player.x + player.w/2, player.y + player.h); ctx.scale(player.facing, player.squash); ctx.translate(-player.w/2, -player.h); ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, player.w, player.h - 10); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, player.w, player.h - 10); ctx.fillRect(4, player.h - 8, 8, 8); ctx.fillRect(player.w - 12, player.h - 8, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(player.w - 6, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(player.w - 10, 8, 4, 4); if (player.isFlying) { ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(-10, 10, 10, 5); ctx.fillRect(player.w, 10, 10, 5); } ctx.restore(); }
+            if (!player.dead && player.invuln % 6 < 3) { 
+                ctx.save(); ctx.translate(player.x + player.w/2, player.y + player.h); ctx.scale(player.facing, player.squash); ctx.translate(-player.w/2, -player.h); 
+                ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, player.w, player.h - 10); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, player.w, player.h - 10); 
+                ctx.fillRect(4, player.h - 8, 8, 8); ctx.fillRect(player.w - 12, player.h - 8, 8, 8); 
+                ctx.fillStyle = '#ff69b4'; ctx.fillRect(player.w - 6, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(player.w - 10, 8, 4, 4); 
+                if (player.isFlying) { ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(-10, 10, 10, 5); ctx.fillRect(player.w, 10, 10, 5); } 
+                ctx.restore(); 
+            }
             ctx.restore();
+
+            // Darkness Overlay
+            if (currentDimension === 'overworld') {
+                const isNight = gameTime > 13000 && gameTime < 23000;
+                if (isNight) {
+                    const nightIntensity = Math.min(0.6, (gameTime - 13000) / 1000, (23000 - gameTime) / 1000);
+                    if (nightIntensity > 0) {
+                        ctx.fillStyle = `rgba(0, 0, 15, ${nightIntensity})`;
+                        ctx.fillRect(0, 0, width, height);
+                    }
+                }
+            }
         }
         init();
     </script>
