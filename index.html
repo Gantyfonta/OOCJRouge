@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: Multiplayer Cleanup Update</title>
+    <title>Moinkcraft: The Chrono-Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDKs -->
     <script type="module">
@@ -327,6 +327,36 @@
             outline: none;
         }
 
+        /* Boss UI */
+        #boss-health-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            background: rgba(0,0,0,0.6);
+            border: 4px solid #4a148c;
+            height: 30px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        #boss-health-fill {
+            height: 100%;
+            background: linear-gradient(to right, #6a1b9a, #9c27b0);
+            width: 100%;
+            transition: width 0.3s;
+        }
+        #boss-name {
+            position: absolute;
+            top: -20px;
+            font-size: 10px;
+            color: #ffb6c1;
+            text-shadow: 2px 2px #000;
+        }
+
         /* Furnace Specific Styles */
         .furnace-section { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px; border: 4px solid #373737; background: #8b8b8b; }
         .furnace-main { display: flex; align-items: center; gap: 20px; }
@@ -351,6 +381,11 @@
         <div id="held-item-cursor"></div>
         <div id="item-tooltip"></div>
         <div id="save-indicator">SAVING...</div>
+
+        <div id="boss-health-container">
+            <div id="boss-name">THE CHRONO-DRAGON</div>
+            <div id="boss-health-fill"></div>
+        </div>
         
         <div id="mode-selection-overlay">
             <h2 style="font-size: 20px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">SELECT GAME MODE</h2>
@@ -571,7 +606,8 @@
         const MOB_TYPES = {
             'zombie_pig': { health: 10, speed: 3.5, behavior: 'chase', w: 34, h: 28, damage: 1, loot: 70, color: '#556b2f', stroke: '#3e4d22', hostile: true },
             'creeper_clock': { health: 8, speed: 4.5, behavior: 'explode', w: 24, h: 48, damage: 0, loot: 73, color: '#fdd835', stroke: '#f9a825', hostile: true },
-            'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: 74, color: '#fff', stroke: '#ccc', hostile: false }
+            'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: 74, color: '#fff', stroke: '#ccc', hostile: false },
+            'chrono_dragon': { health: 200, maxHealth: 200, speed: 6, behavior: 'boss', w: 120, h: 80, damage: 2, loot: 11, color: '#4a148c', stroke: '#9c27b0', hostile: true, boss: true }
         };
 
         const RECIPES = [
@@ -627,6 +663,8 @@
         const joinLanOverlay = document.getElementById('join-lan-overlay');
         const itemTooltipEl = document.getElementById('item-tooltip');
         const timeIndicatorEl = document.getElementById('time-indicator');
+        const bossHealthContainer = document.getElementById('boss-health-container');
+        const bossHealthFill = document.getElementById('boss-health-fill');
         
         let width, height;
         let camera = { x: 0, y: 0 };
@@ -635,6 +673,7 @@
         let worlds = { overworld: {}, nether: {}, the_end: {} };
         let tileEntities = { overworld: {}, nether: {}, the_end: {} };
         let mobs = { overworld: [], nether: [], the_end: [] };
+        let projectiles = [];
         let teleportTimer = 0;
         let activeSaveSlot = null;
         let pendingSaveSlot = null;
@@ -1292,7 +1331,7 @@
                 const m = currentMobs[i];
                 if(hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
                     const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
-                    if(dist < 150) { m.health -= damage; m.vx = (m.x - player.x) > 0 ? knockback : -knockback; m.vy = -5; createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10); if(m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); if(m.type === 'chicken' && Math.random() < 0.7) { addItemToInventory(75, Math.floor(Math.random() * 2) + 1); } createParticles(m.x + m.w/2, m.y + m.h/2, m.color, 15); currentMobs.splice(i, 1); } return; }
+                    if(dist < 180) { m.health -= damage; m.vx = (m.x - player.x) > 0 ? knockback : -knockback; m.vy = -5; createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10); if(m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); if(m.type === 'chicken' && Math.random() < 0.7) { addItemToInventory(75, Math.floor(Math.random() * 2) + 1); } if(m.type === 'chrono_dragon') { createParticles(m.x + m.w/2, m.y + m.h/2, '#f1c40f', 100); } createParticles(m.x + m.w/2, m.y + m.h/2, m.color, 15); currentMobs.splice(i, 1); } return; }
                 }
             }
         }
@@ -1327,25 +1366,69 @@
 
         function spawnMob(type, x, y) {
             const config = MOB_TYPES[type];
-            mobs[currentDimension].push({ ...config, type, x, y, vx: 0, vy: 0, facing: 1, animTimer: 0, grounded: false, fuse: 0 });
+            mobs[currentDimension].push({ ...config, type, x, y, vx: 0, vy: 0, facing: 1, animTimer: 0, grounded: false, fuse: 0, state: 'idle', timer: 0 });
         }
 
         function updateMobs() {
-            if (isLanClient) return; // Only host handles mobs simulation
+            if (isLanClient) return; 
             const currentMobs = mobs[currentDimension]; const world = worlds[currentDimension];
             const isNight = gameTime > 13000 && gameTime < 23000;
             const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
-            if (currentMobs.length < 15 && Math.random() < spawnChance) {
-                const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400); const sx = Math.floor(spawnX / TILE_SIZE);
-                if (sx >= 0 && sx < WORLD_WIDTH) { let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; if (sy < WORLD_HEIGHT) { let types = []; if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } else if (currentDimension === 'nether') { types = ['zombie_pig', 'creeper_clock']; } else { types = ['creeper_clock']; } if (types.length > 0) { spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } } }
+            
+            // End Boss Spawning
+            if (currentDimension === 'the_end') {
+                const hasBoss = currentMobs.some(m => m.type === 'chrono_dragon');
+                if (!hasBoss && Math.random() < 0.01) {
+                    spawnMob('chrono_dragon', (WORLD_WIDTH/2)*TILE_SIZE, (WORLD_HEIGHT/2 - 10)*TILE_SIZE);
+                }
             }
+
+            if (currentMobs.length < 15 && Math.random() < spawnChance && currentDimension !== 'the_end') {
+                const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400); const sx = Math.floor(spawnX / TILE_SIZE);
+                if (sx >= 0 && sx < WORLD_WIDTH) { let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; if (sy < WORLD_HEIGHT) { let types = []; if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } else if (currentDimension === 'nether') { types = ['zombie_pig', 'creeper_clock']; } if (types.length > 0) { spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } } }
+            }
+
+            let bossFound = null;
             for(let i = currentMobs.length - 1; i >= 0; i--) {
                 const m = currentMobs[i]; const dx = player.x - m.x; const dy = player.y - m.y; const dist = Math.hypot(dx, dy);
-                if (dist > 2000) { currentMobs.splice(i, 1); continue; }
-                if (m.behavior === 'chase' || m.behavior === 'explode') { if (dist < 400) { m.vx += (dx > 0 ? 1 : -1) * 0.5; if (dx > 0) m.facing = 1; else m.facing = -1; if (dist < 100 && Math.random() < 0.1 && m.grounded) m.vy = -12; } else { m.vx *= 0.8; } } else if (m.behavior === 'wander') { if (Math.random() < 0.02) m.vx = (Math.random()-0.5) * 10; if (Math.random() < 0.01 && m.grounded) m.vy = -12; }
-                if (m.behavior === 'explode' && dist < 60) { m.fuse++; if (m.fuse >= 40) { const explodeDist = Math.hypot(player.x - m.x, player.y - m.y); if(explodeDist < 120) takeDamage(3); createParticles(m.x, m.y, '#ff4500', 30); currentMobs.splice(i, 1); continue; } } else { m.fuse = Math.max(0, m.fuse - 1); }
-                if (m.damage > 0 && dist < 40 && player.invuln <= 0) takeDamage(m.damage);
-                m.vx *= 0.8; m.vy += GRAVITY; m.x += m.vx; resolveEntityCollision(m, 'x'); m.y += m.vy; m.grounded = false; resolveEntityCollision(m, 'y'); m.animTimer += Math.abs(m.vx) * 0.1;
+                if (dist > 2000 && m.type !== 'chrono_dragon') { currentMobs.splice(i, 1); continue; }
+                
+                if (m.type === 'chrono_dragon') {
+                    bossFound = m;
+                    // Boss AI
+                    m.timer++;
+                    if (m.state === 'idle') {
+                        const targetX = (WORLD_WIDTH/2) * TILE_SIZE + Math.cos(m.timer*0.02) * 400;
+                        const targetY = (WORLD_HEIGHT/2 - 12) * TILE_SIZE + Math.sin(m.timer*0.05) * 200;
+                        m.vx += (targetX - m.x) * 0.01; m.vy += (targetY - m.y) * 0.01;
+                        if (m.timer % 100 === 0) m.state = Math.random() < 0.5 ? 'swoop' : 'fire';
+                    } else if (m.state === 'swoop') {
+                        m.vx += (player.x - m.x) * 0.04; m.vy += (player.y - m.y) * 0.04;
+                        if (dist < 40) { takeDamage(2); m.state = 'idle'; m.timer = 0; m.vy = -15; }
+                        if (m.timer > 160) { m.state = 'idle'; m.timer = 0; }
+                    } else if (m.state === 'fire') {
+                        m.vx *= 0.9; m.vy *= 0.9;
+                        if (m.timer % 20 === 0) {
+                            const angle = Math.atan2(dy, dx);
+                            projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, life: 100, color: '#f1c40f' });
+                        }
+                        if (m.timer > 100) { m.state = 'idle'; m.timer = 0; }
+                    }
+                    m.vx *= 0.95; m.vy *= 0.95; m.x += m.vx; m.y += m.vy;
+                    m.facing = m.vx > 0 ? 1 : -1;
+                } else {
+                    if (m.behavior === 'chase' || m.behavior === 'explode') { if (dist < 400) { m.vx += (dx > 0 ? 1 : -1) * 0.5; if (dx > 0) m.facing = 1; else m.facing = -1; if (dist < 100 && Math.random() < 0.1 && m.grounded) m.vy = -12; } else { m.vx *= 0.8; } } else if (m.behavior === 'wander') { if (Math.random() < 0.02) m.vx = (Math.random()-0.5) * 10; if (Math.random() < 0.01 && m.grounded) m.vy = -12; }
+                    if (m.behavior === 'explode' && dist < 60) { m.fuse++; if (m.fuse >= 40) { const explodeDist = Math.hypot(player.x - m.x, player.y - m.y); if(explodeDist < 120) takeDamage(3); createParticles(m.x, m.y, '#ff4500', 30); currentMobs.splice(i, 1); continue; } } else { m.fuse = Math.max(0, m.fuse - 1); }
+                    if (m.damage > 0 && dist < 40 && player.invuln <= 0) takeDamage(m.damage);
+                    m.vx *= 0.8; m.vy += GRAVITY; m.x += m.vx; resolveEntityCollision(m, 'x'); m.y += m.vy; m.grounded = false; resolveEntityCollision(m, 'y'); m.animTimer += Math.abs(m.vx) * 0.1;
+                }
+            }
+
+            if (bossFound) {
+                bossHealthContainer.style.display = 'flex';
+                bossHealthFill.style.width = (bossFound.health / bossFound.maxHealth) * 100 + '%';
+            } else {
+                bossHealthContainer.style.display = 'none';
             }
         }
 
@@ -1401,7 +1484,18 @@
 
         function generateNether() { const world = worlds.nether; const seed = Math.random() * 2000; for (let x = 0; x < WORLD_WIDTH; x++) { for(let y=0; y<5; y++) world[`${x},${y}`] = 51; for(let y=WORLD_HEIGHT-5; y<WORLD_HEIGHT; y++) world[`${x},${y}`] = 51; for(let y=WORLD_HEIGHT-10; y<WORLD_HEIGHT-5; y++) world[`${x},${y}`] = 6; for (let y = 5; y < WORLD_HEIGHT - 10; y++) { if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) { world[`${x},${y}`] = 51; if (Math.random() < 0.02) world[`${x},${y}`] = 52; if (Math.random() < 0.01) world[`${x},${y}`] = 25; } } } }
 
-        function generateEnd() { const world = worlds.the_end; const centerX = Math.floor(WORLD_WIDTH / 2); const centerY = Math.floor(WORLD_HEIGHT / 2); for(let x = centerX - 15; x <= centerX + 15; x++) { for(let y = centerY - 5; y <= centerY + 5; y++) { const dx = x - centerX; const dy = y - centerY; if (dx*dx + dy*dy*9 < 200) { world[`${x},${y}`] = 91; } } } world[`${centerX},${centerY-1}`] = 90; }
+        function generateEnd() { 
+            const world = worlds.the_end; 
+            const centerX = Math.floor(WORLD_WIDTH / 2); 
+            const centerY = Math.floor(WORLD_HEIGHT / 2); 
+            for(let x = 0; x < WORLD_WIDTH; x++) {
+                for(let y = 0; y < WORLD_HEIGHT; y++) {
+                    const dx = x - centerX; const dy = y - (centerY + 10);
+                    if (dx*dx + dy*dy*4 < 1000) { world[`${x},${y}`] = 91; }
+                }
+            }
+            world[`${centerX},${centerY+4}`] = 90; 
+        }
 
         function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
         function takeDamage(amt) { if (player.gameMode === 'creative' || player.invuln > 0 || player.dead) return; player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); if (player.health <= 0) die(); player.vy = -12; }
@@ -1434,6 +1528,16 @@
             const world = worlds[currentDimension];
             updateMobs();
             syncMultiplayerData();
+
+            // Update Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.x += p.vx; p.y += p.vy; p.life--;
+                if (Math.hypot(p.x - (player.x + player.w/2), p.y - (player.y + player.h/2)) < 30) {
+                    takeDamage(1); projectiles.splice(i, 1); continue;
+                }
+                if (p.life <= 0) projectiles.splice(i, 1);
+            }
 
             if (player.fishing.active) {
                 const bob = player.fishing;
@@ -1476,6 +1580,18 @@
             if (e.type === 'zombie_pig') { ctx.fillStyle = '#556b2f'; ctx.fillRect(0, 4, e.w, e.h - 10); ctx.strokeStyle = '#3e4d22'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, e.w, e.h - 10); ctx.fillRect(4, e.h - 8, 8, 8); ctx.fillRect(e.w - 12, e.h - 8, 8, 8); ctx.fillStyle = '#3e4d22'; ctx.fillRect(e.w - 6, 12, 10, 10); ctx.fillStyle = '#f00'; ctx.fillRect(e.w - 10, 8, 4, 4); } 
             else if (e.type === 'creeper_clock') { const clockFlash = e.fuse > 0 && Math.floor(Date.now()/100) % 2 === 0; ctx.fillStyle = clockFlash ? '#fff' : '#fdd835'; ctx.fillRect(4, 0, e.w - 8, e.h - 10); ctx.fillRect(0, e.h - 10, 10, 10); ctx.fillRect(e.w - 10, e.h - 10, 10, 10); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(e.w/2, 12, 8, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(e.w/2, 12); const time = Date.now() / (e.fuse > 0 ? 50 : 300); ctx.lineTo(e.w/2 + Math.cos(time)*6, 12 + Math.sin(time)*6); ctx.stroke(); } 
             else if (e.type === 'chicken') { ctx.fillStyle = '#fff'; ctx.fillRect(4, 4, e.w-8, e.h-8); ctx.fillStyle = '#f90'; ctx.fillRect(e.w-6, 8, 6, 4); ctx.fillStyle = '#f00'; ctx.fillRect(6, 0, 4, 4); ctx.fillStyle = '#eee'; const wingW = 4 + Math.sin(e.animTimer)*2; ctx.fillRect(-wingW, 8, wingW, 8); }
+            else if (e.type === 'chrono_dragon') {
+                ctx.fillStyle = '#4a148c'; ctx.fillRect(0, 10, e.w, e.h - 20); ctx.strokeStyle = '#9c27b0'; ctx.lineWidth = 4; ctx.strokeRect(0, 10, e.w, e.h - 20);
+                // Clock face chest
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(e.w/2, e.h/2, 25, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(e.w/2, e.h/2); const t = Date.now()/500; ctx.lineTo(e.w/2 + Math.cos(t)*15, e.h/2 + Math.sin(t)*15); ctx.stroke();
+                // Wings
+                const wingSway = Math.sin(Date.now()/200) * 30; ctx.fillStyle = 'rgba(156, 39, 176, 0.6)';
+                ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(-40, -wingSway); ctx.lineTo(-10, 40); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(e.w-20, 20); ctx.lineTo(e.w+40, -wingSway); ctx.lineTo(e.w+10, 40); ctx.fill();
+                // Head
+                ctx.fillStyle = '#4a148c'; ctx.fillRect(e.w - 10, 0, 40, 30); ctx.fillStyle = '#f1c40f'; ctx.fillRect(e.w + 10, 5, 8, 8);
+            }
             else { // Other players
                 ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, 34, 18); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, 34, 18); ctx.fillRect(4, 20, 8, 8); ctx.fillRect(22, 20, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(28, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(24, 8, 4, 4);
                 ctx.fillStyle = '#fff'; ctx.font = '5px "Press Start 2P"'; ctx.fillText(e.id?.substr(0,4) || "PIG", 0, -5);
@@ -1508,6 +1624,12 @@
             ctx.save(); ctx.translate(-camera.x, -camera.y);
             const world = worlds[currentDimension];
             if (world) { const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1), v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1); for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]); }
+            
+            projectiles.forEach(p => {
+                ctx.fillStyle = p.color; ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p.x-4, p.y-4, 8, 8);
+            });
+
             const currentMobs = mobs[currentDimension] || [];
             currentMobs.forEach(drawEntity);
             Object.values(otherPlayers).forEach(p => { if (p.dim === currentDimension) drawEntity(p); });
