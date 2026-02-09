@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: The Chrono-Update</title>
+    <title>Moinkcraft: The Barter Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDKs -->
     <script type="module">
@@ -600,14 +600,16 @@
             79: { name: 'Gold Sword', color: '#fff176', stroke: '#fbc02d', item: true, toolType: 'sword', damage: 5 },
             80: { name: 'Diamond Sword', color: '#00e5ff', stroke: '#00b8d4', item: true, toolType: 'sword', damage: 8 },
             90: { name: 'End Portal', color: '#000', stroke: '#4a148c', hardness: 999, animated: true, teleport: true, toDimension: 'the_end' },
-            91: { name: 'End Stone', color: '#fff9c4', stroke: '#fbc02d', hardness: 50, tool: 'pickaxe', texture: 'end_stone', requiredTier: 1 }
+            91: { name: 'End Stone', color: '#fff9c4', stroke: '#fbc02d', hardness: 50, tool: 'pickaxe', texture: 'end_stone', requiredTier: 1 },
+            92: { name: 'Master Clock Core', color: '#9c27b0', stroke: '#f1c40f', item: true, special: true }
         };
 
         const MOB_TYPES = {
             'zombie_pig': { health: 10, speed: 3.5, behavior: 'chase', w: 34, h: 28, damage: 1, loot: 70, color: '#556b2f', stroke: '#3e4d22', hostile: true },
             'creeper_clock': { health: 8, speed: 4.5, behavior: 'explode', w: 24, h: 48, damage: 0, loot: 73, color: '#fdd835', stroke: '#f9a825', hostile: true },
             'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: 74, color: '#fff', stroke: '#ccc', hostile: false },
-            'chrono_dragon': { health: 200, maxHealth: 200, speed: 6, behavior: 'boss', w: 120, h: 80, damage: 2, loot: 11, color: '#4a148c', stroke: '#9c27b0', hostile: true, boss: true }
+            'chrono_dragon': { health: 200, maxHealth: 200, speed: 6, behavior: 'boss', w: 120, h: 80, damage: 2, loot: 92, color: '#4a148c', stroke: '#9c27b0', hostile: true, boss: true },
+            'piglin': { health: 15, speed: 2.5, behavior: 'wander', w: 34, h: 32, damage: 2, color: '#e1a692', stroke: '#c17a60', hostile: false, barter: true }
         };
 
         const RECIPES = [
@@ -1153,7 +1155,9 @@
             };
 
             const sizeMod = scale;
-            if (block.toolType === 'sword') {
+            if (id === 92) { // Master Core
+                drawShape({ width: (24*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#9c27b0', border: `${2*sizeMod}px solid #f1c40f`, borderRadius: '50%', boxShadow: '0 0 10px #f1c40f', animation: 'flicker 0.5s infinite alternate' });
+            } else if (block.toolType === 'sword') {
                 drawShape({ width: (4*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', bottom: '4px', left: '12px' });
                 drawShape({ width: (14*sizeMod)+'px', height: (4*sizeMod)+'px', background: '#333', transform: 'rotate(-45deg)', bottom: '12px', left: '10px' });
                 drawShape({ width: (8*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-45deg)', top: '2px', left: '16px', borderRadius: '2px' });
@@ -1340,6 +1344,26 @@
             if (player.dead || inventoryOpen || isPaused) return;
             const world = worlds[currentDimension];
             const activeItem = hotbarInventory[activeHotbarIndex];
+            
+            // Interaction with entities
+            const hitX = mouse.x + camera.x; const hitY = mouse.y + camera.y;
+            const currentMobs = mobs[currentDimension];
+            for (let m of currentMobs) {
+                if (hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
+                    const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
+                    if (dist < 120) {
+                        if (m.type === 'piglin' && activeItem?.id === 32) { // Gold Ingot Barter
+                            activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
+                            const barterLoots = [28, 52, 58, 31, 51, 91]; // Obsidian, Glowstone, Flint, Iron, Netherrack, End Stone
+                            const won = barterLoots[Math.floor(Math.random() * barterLoots.length)];
+                            addItemToInventory(won, Math.floor(Math.random() * 2) + 1);
+                            createParticles(m.x + m.w/2, m.y + m.h/2, '#f1c40f', 15);
+                            updateHUD(); return;
+                        }
+                    }
+                }
+            }
+
             if (activeItem?.id === 71) {
                 if (!player.fishing.active) { player.fishing.active = true; player.fishing.x = player.x + player.w/2; player.fishing.y = player.y + player.h/2; player.fishing.vx = (player.facing * 12); player.fishing.vy = -10; player.fishing.state = 'casting'; player.fishing.timer = 0; } 
                 else { if (player.fishing.state === 'bite') { const roll = Math.random(); let loot = 72; if (roll < 0.1) loot = 32; else if (roll < 0.2) loot = 15; else if (roll < 0.3) loot = 34; addItemToInventory(loot, 1); createParticles(player.fishing.x, player.fishing.y, '#fff', 20); updateHUD(); } player.fishing.active = false; }
@@ -1383,9 +1407,17 @@
                 }
             }
 
-            if (currentMobs.length < 15 && Math.random() < spawnChance && currentDimension !== 'the_end') {
+            if (currentMobs.length < 15 && Math.random() < spawnChance) {
                 const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400); const sx = Math.floor(spawnX / TILE_SIZE);
-                if (sx >= 0 && sx < WORLD_WIDTH) { let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; if (sy < WORLD_HEIGHT) { let types = []; if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } else if (currentDimension === 'nether') { types = ['zombie_pig', 'creeper_clock']; } if (types.length > 0) { spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } } }
+                if (sx >= 0 && sx < WORLD_WIDTH) { 
+                    let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; 
+                    if (sy < WORLD_HEIGHT) { 
+                        let types = []; 
+                        if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } 
+                        else if (currentDimension === 'nether') { types = ['zombie_pig', 'piglin']; } 
+                        if (types.length > 0) { spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } 
+                    } 
+                }
             }
 
             let bossFound = null;
@@ -1395,7 +1427,6 @@
                 
                 if (m.type === 'chrono_dragon') {
                     bossFound = m;
-                    // Boss AI
                     m.timer++;
                     if (m.state === 'idle') {
                         const targetX = (WORLD_WIDTH/2) * TILE_SIZE + Math.cos(m.timer*0.02) * 400;
@@ -1529,7 +1560,6 @@
             updateMobs();
             syncMultiplayerData();
 
-            // Update Projectiles
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const p = projectiles[i];
                 p.x += p.vx; p.y += p.vy; p.life--;
@@ -1582,17 +1612,17 @@
             else if (e.type === 'chicken') { ctx.fillStyle = '#fff'; ctx.fillRect(4, 4, e.w-8, e.h-8); ctx.fillStyle = '#f90'; ctx.fillRect(e.w-6, 8, 6, 4); ctx.fillStyle = '#f00'; ctx.fillRect(6, 0, 4, 4); ctx.fillStyle = '#eee'; const wingW = 4 + Math.sin(e.animTimer)*2; ctx.fillRect(-wingW, 8, wingW, 8); }
             else if (e.type === 'chrono_dragon') {
                 ctx.fillStyle = '#4a148c'; ctx.fillRect(0, 10, e.w, e.h - 20); ctx.strokeStyle = '#9c27b0'; ctx.lineWidth = 4; ctx.strokeRect(0, 10, e.w, e.h - 20);
-                // Clock face chest
                 ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(e.w/2, e.h/2, 25, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(e.w/2, e.h/2); const t = Date.now()/500; ctx.lineTo(e.w/2 + Math.cos(t)*15, e.h/2 + Math.sin(t)*15); ctx.stroke();
-                // Wings
                 const wingSway = Math.sin(Date.now()/200) * 30; ctx.fillStyle = 'rgba(156, 39, 176, 0.6)';
                 ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(-40, -wingSway); ctx.lineTo(-10, 40); ctx.fill();
                 ctx.beginPath(); ctx.moveTo(e.w-20, 20); ctx.lineTo(e.w+40, -wingSway); ctx.lineTo(e.w+10, 40); ctx.fill();
-                // Head
                 ctx.fillStyle = '#4a148c'; ctx.fillRect(e.w - 10, 0, 40, 30); ctx.fillStyle = '#f1c40f'; ctx.fillRect(e.w + 10, 5, 8, 8);
             }
-            else { // Other players
+            else if (e.type === 'piglin') {
+                ctx.fillStyle = '#e1a692'; ctx.fillRect(4, 0, e.w - 8, e.h - 10); ctx.fillStyle = '#fdd835'; ctx.fillRect(2, 10, e.w - 4, e.h - 20); ctx.fillStyle = '#e1a692'; ctx.fillRect(0, e.h - 10, 10, 10); ctx.fillRect(e.w - 10, e.h - 10, 10, 10); ctx.fillStyle = '#c17a60'; ctx.fillRect(-4, 4, 6, 12); ctx.fillRect(e.w - 2, 4, 6, 12); ctx.fillStyle = '#fff'; ctx.fillRect(e.w - 10, 4, 4, 4);
+            }
+            else {
                 ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, 34, 18); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, 34, 18); ctx.fillRect(4, 20, 8, 8); ctx.fillRect(22, 20, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(28, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(24, 8, 4, 4);
                 ctx.fillStyle = '#fff'; ctx.font = '5px "Press Start 2P"'; ctx.fillText(e.id?.substr(0,4) || "PIG", 0, -5);
             }
