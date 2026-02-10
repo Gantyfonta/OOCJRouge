@@ -410,7 +410,6 @@
         <div id="pause-menu">
             <h2 style="font-size: 24px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">GAME PAUSED</h2>
             <div class="btn" onclick="togglePauseMenu()">RESUME</div>
-            <div class="btn gold" id="open-to-lan-btn" onclick="openToLan()">OPEN TO LAN</div>
             <div id="lan-code-display">CODE: <span id="code-val">------</span></div>
             <div class="btn grey" onclick="saveAndQuit()">SAVE AND QUIT</div>
         </div>
@@ -437,8 +436,6 @@
                     <div class="slot-actions"><button class="btn-mini" onclick="handleSlotAction(2, 'play')">PLAY</button></div>
                 </div>
             </div>
-
-            <div class="btn gold" style="margin-top: 20px; width: 350px; font-size: 10px;" onclick="openJoinLan()">JOIN LAN WORLD</div>
 
             <div style="font-size: 6px; color: #555; margin-top: 20px;">ESC: PAUSE | WASD: MOVE | SPACE: JUMP | E: INV | CLICK: MINE/HIT</div>
         </div>
@@ -1168,7 +1165,7 @@
                 }
             } else {
                 const craftSlots2 = document.querySelectorAll('#crafting-grid-2x2 .mc-slot');
-                craftingGrid2x2.forEach((item, i) => { if(craftSlots2[i]) { craftSlots2[i].innerHTML = ''; if (item) craftSlots2[i].appendChild(createItemVisual(item.id, item.count)); } });
+                craftingGrid2x2.forEach((item, i) => { if(craftSlots2[i]) { craftSlots2[i].innerHTML = ''; if (item) craftingGrid2x2[i].appendChild(createItemVisual(item.id, item.count)); } });
                 const craftSlots3 = document.querySelectorAll('#crafting-grid-3x3 .mc-slot');
                 craftingGrid3x3.forEach((item, i) => { if(craftSlots3[i]) { craftSlots3[i].innerHTML = ''; if (item) craftingGrid3x3[i].appendChild(createItemVisual(item.id, item.count)); } });
                 checkRecipes();
