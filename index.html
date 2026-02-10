@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Moinkcraft: The Barter Update</title>
+    <title>Moinkcraft: The LAN Sync Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDKs -->
     <script type="module">
@@ -578,6 +578,8 @@
             82: { name: 'Diamond Pickaxe', color: '#00e5ff', toolType: 'pickaxe', tier: 4, item: true },
             83: { name: 'Diamond Shovel', color: '#00e5ff', toolType: 'shovel', tier: 4, item: true },
             84: { name: 'Diamond Axe', color: '#00e5ff', toolType: 'axe', tier: 4, item: true },
+            85: { name: 'Bow', color: '#8d6e63', stroke: '#5d4037', item: true, weapon: 'ranged' },
+            86: { name: 'Arrow', color: '#e0e0e0', stroke: '#424242', item: true },
             51: { name: 'Netherrack', color: '#b71c1c', stroke: '#7f0000', hardness: 15, tool: 'pickaxe', texture: 'netherrack', requiredTier: 1 },
             52: { name: 'Glowstone', color: '#fff59d', stroke: '#fbc02d', hardness: 10, animated: true },
             57: { name: 'Gravel', color: '#bdbdbd', stroke: '#9e9e9e', hardness: 10, tool: 'shovel', dropChance: 0.1, dropId: 58 },
@@ -638,7 +640,9 @@
             { pattern: [[7], [7], [15]], result: 77, amount: 1 },
             { pattern: [[31], [31], [15]], result: 78, amount: 1 },
             { pattern: [[32], [32], [15]], result: 79, amount: 1 },
-            { pattern: [[33], [33], [15]], result: 80, amount: 1 }
+            { pattern: [[33], [33], [15]], result: 80, amount: 1 },
+            { pattern: [[null, 15, 73], [15, null, 73], [null, 15, 73]], result: 85, amount: 1 }, // Bow
+            { pattern: [[58], [15], [75]], result: 86, amount: 4 } // Arrow
         ];
 
         const SMELTING_RECIPES = {
@@ -704,7 +708,8 @@
             gameMode: 'survival', 
             isFlying: false,
             lastJumpTime: 0,
-            fishing: { active: false, x: 0, y: 0, vx: 0, vy: 0, state: 'idle', timer: 0, biteTimer: 0 }
+            fishing: { active: false, x: 0, y: 0, vx: 0, vy: 0, state: 'idle', timer: 0, biteTimer: 0 },
+            bowCharge: 0
         };
         
         let mainInventory = new Array(27).fill(null);
@@ -838,6 +843,8 @@
             const worldRef = ref(window.m_db, `sessions/${code}/world`);
             const entitiesRef = ref(window.m_db, `sessions/${code}/tileEntities`);
             const mobsRef = ref(window.m_db, `sessions/${code}/mobs`);
+            const projRef = ref(window.m_db, `sessions/${code}/projectiles`);
+            const actionsRef = ref(window.m_db, `sessions/${code}/actions`);
 
             onChildAdded(playersRef, (snapshot) => {
                 if (snapshot.key !== myPlayerId) otherPlayers[snapshot.key] = snapshot.val();
@@ -852,26 +859,45 @@
             // Sync World Changes
             onValue(worldRef, (snapshot) => {
                 const remoteWorld = snapshot.val();
-                if (remoteWorld) {
-                    worlds = remoteWorld;
-                }
+                if (remoteWorld) worlds = remoteWorld;
             });
 
             // Sync Tile Entities (Furnaces)
             onValue(entitiesRef, (snapshot) => {
                 const remoteEntities = snapshot.val();
-                if (remoteEntities) {
-                    tileEntities = remoteEntities;
-                }
+                if (remoteEntities) tileEntities = remoteEntities;
             });
 
-            // Sync Mobs (Clients receive host simulation)
+            // Sync Mobs and Projectiles (Authoritative Host)
             onValue(mobsRef, (snapshot) => {
                 if (isLanClient) {
                     const remoteMobs = snapshot.val();
                     if (remoteMobs) mobs = remoteMobs;
                 }
             });
+
+            onValue(projRef, (snapshot) => {
+                if (isLanClient) {
+                    const remoteProjs = snapshot.val();
+                    if (remoteProjs) projectiles = remoteProjs;
+                }
+            });
+
+            // Host listens for client actions (like shooting)
+            if (isLanHost) {
+                onChildAdded(actionsRef, (snapshot) => {
+                    const action = snapshot.val();
+                    if (action.type === 'shoot') {
+                        projectiles.push({ 
+                            x: action.x, y: action.y, 
+                            vx: action.vx, vy: action.vy, 
+                            life: 200, color: '#8d6e63', type: 'player_arrow', damage: action.damage 
+                        });
+                    }
+                    // Clear handled action
+                    set(ref(window.m_db, `sessions/${lanSessionCode}/actions/${snapshot.key}`), null);
+                });
+            }
         }
 
         function syncMultiplayerData() {
@@ -889,15 +915,24 @@
                 id: myPlayerId
             });
 
-            // If host, sync time, tileEntities, and mobs
+            // If host, sync simulation states
             if (isLanHost) {
                 const metaRef = ref(window.m_db, `sessions/${lanSessionCode}`);
                 fireUpdate(metaRef, { 
                     gameTime: gameTime,
                     tileEntities: tileEntities,
-                    mobs: mobs
+                    mobs: mobs,
+                    projectiles: projectiles
                 });
             }
+        }
+
+        function notifyShot(x, y, vx, vy, damage) {
+            if (!lanSessionCode) return;
+            if (isLanHost) return; // Host spawns directly
+            const { ref, push } = window.m_refs;
+            const actionsRef = ref(window.m_db, `sessions/${lanSessionCode}/actions`);
+            push(actionsRef, { type: 'shoot', x, y, vx, vy, damage });
         }
 
         function broadcastWorldChange() {
@@ -1155,21 +1190,28 @@
             };
 
             const sizeMod = scale;
-            if (id === 92) { // Master Core
+            if (id === 92) { 
                 drawShape({ width: (24*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#9c27b0', border: `${2*sizeMod}px solid #f1c40f`, borderRadius: '50%', boxShadow: '0 0 10px #f1c40f', animation: 'flicker 0.5s infinite alternate' });
+            } else if (id === 85) { 
+                drawShape({ width: (2*sizeMod)+'px', height: (34*sizeMod)+'px', background: '#fff', left: (16*sizeMod)+'px', opacity: 0.8 }); 
+                drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', border: `${4*sizeMod}px solid #8d6e63`, borderRadius: '50%', borderRightColor: 'transparent', transform: 'rotate(-45deg)', left: (5*sizeMod)+'px' });
+            } else if (id === 86) { 
+                drawShape({ width: (28*sizeMod)+'px', height: (2*sizeMod)+'px', background: '#8d6e63', left: (4*sizeMod)+'px', top: (16*sizeMod)+'px' });
+                drawShape({ width: (8*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#424242', right: (4*sizeMod)+'px', top: (13*sizeMod)+'px', clipPath: 'polygon(0% 50%, 100% 0%, 100% 100%)' });
+                drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: '#fff', left: (4*sizeMod)+'px', top: (14*sizeMod)+'px', borderRadius: '1px' });
             } else if (block.toolType === 'sword') {
                 drawShape({ width: (4*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', bottom: '4px', left: '12px' });
                 drawShape({ width: (14*sizeMod)+'px', height: (4*sizeMod)+'px', background: '#333', transform: 'rotate(-45deg)', bottom: '12px', left: '10px' });
                 drawShape({ width: (8*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-45deg)', top: '2px', left: '16px', borderRadius: '2px' });
-            } else if (id === 71) { // Rod
+            } else if (id === 71) { 
                 drawShape({ width: (4*sizeMod)+'px', height: (34*sizeMod)+'px', background: '#8d6e63', transform: 'rotate(25deg)' });
                 drawShape({ width: (2*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#fff', top: (5*sizeMod)+'px', left: (15*sizeMod)+'px' });
-            } else if (id === 72 || id === 74) { // Fish / Chimken
+            } else if (id === 72 || id === 74) { 
                 drawShape({ width: (24*sizeMod)+'px', height: (12*sizeMod)+'px', background: block.color, borderRadius: '50% 50% 20% 20%', border: `${2*sizeMod}px solid ${block.stroke || '#1a237e'}` });
                 drawShape({ width: (8*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, transform: 'rotate(45deg)', left: (18*sizeMod)+'px', top: (2*sizeMod)+'px', border: `${2*sizeMod}px solid ${block.stroke || '#1a237e'}` });
-            } else if (id === 73) { // Wire
+            } else if (id === 73) { 
                 drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', background: 'transparent', border: `${2*sizeMod}px solid #fff`, borderRadius: '50%', clipPath: 'polygon(0% 0%, 100% 0%, 100% 50%, 0% 50%)' });
-            } else if (id === 75) { // Feather
+            } else if (id === 75) { 
                 drawShape({ width: (8*sizeMod)+'px', height: (24*sizeMod)+'px', background: block.color, border: `${sizeMod}px solid ${block.stroke}`, transform: 'rotate(20deg)', borderRadius: '0 50% 0 50%' });
             } else if (block.type === 'ingot') {
                 drawShape({ width: (24*sizeMod)+'px', height: (12*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px' });
@@ -1217,7 +1259,7 @@
             else if (type === 'hotbar') targetArray = hotbarInventory;
             else if (type === 'craft2') targetArray = craftingGrid2x2;
             else if (type === 'craft3') targetArray = craftingGrid3x3;
-            else if (type.startsWith('furnace-')) {
+            else if (type && typeof type === 'string' && type.startsWith('furnace-')) {
                 const f = tileEntities[currentDimension][activeFurnacePos];
                 if (!f) return;
                 const field = type.replace('furnace-', '');
@@ -1305,7 +1347,13 @@
             if (invSlot) {
                 const type = invSlot.dataset.type; const idx = parseInt(invSlot.dataset.idx);
                 let item = null;
-                if (type === 'main') item = mainInventory[idx]; else if (type === 'hotbar') item = hotbarInventory[idx]; else if (type === 'craft2') item = craftingGrid2x2[idx]; else if (type === 'craft3') item = craftingGrid3x3[idx]; else if (type.startsWith('furnace-')) { const f = tileEntities[currentDimension][activeFurnacePos]; if (f) item = f[type.replace('furnace-', '')]; } else if (type === 'creative') item = { id: parseInt(invSlot.dataset.itemId) }; else if (invSlot.id === 'crafting-output') item = craftingOutput;
+                if (type === 'main') item = mainInventory[idx]; 
+                else if (type === 'hotbar') item = hotbarInventory[idx]; 
+                else if (type === 'craft2') item = craftingGrid2x2[idx]; 
+                else if (type === 'craft3') item = craftingGrid3x3[idx]; 
+                else if (type && typeof type === 'string' && type.startsWith('furnace-')) { const f = tileEntities[currentDimension][activeFurnacePos]; if (f) item = f[type.replace('furnace-', '')]; } 
+                else if (type === 'creative') item = { id: parseInt(invSlot.dataset.itemId) }; 
+                else if (invSlot.id === 'crafting-output') item = craftingOutput;
                 if (item) { const block = BLOCK_TYPES[item.id]; tooltipText = block?.name || ""; if (block?.toolType === 'sword') subText = `\nDAMAGE: ${block.damage}`; }
             } else if (hudSlot) {
                 const slots = Array.from(document.querySelectorAll('.hud-slot')); const idx = slots.indexOf(hudSlot); const item = hotbarInventory[idx];
@@ -1329,6 +1377,9 @@
             const hitX = mouse.x + camera.x; const hitY = mouse.y + camera.y;
             const currentMobs = mobs[currentDimension];
             const activeItem = hotbarInventory[activeHotbarIndex]; const blockData = activeItem ? BLOCK_TYPES[activeItem.id] : null;
+            
+            if (activeItem?.id === 85) return;
+
             let damage = 2; let knockback = 10;
             if (blockData?.toolType === 'sword') { damage = blockData.damage; knockback = 15 + (damage * 0.5); createParticles(hitX, hitY, blockData.color, 3); }
             for(let i = currentMobs.length - 1; i >= 0; i--) {
@@ -1340,21 +1391,32 @@
             }
         }
 
+        function hasArrows() {
+            if (player.gameMode === 'creative') return true;
+            return [...hotbarInventory, ...mainInventory].some(item => item?.id === 86);
+        }
+
+        function consumeArrow() {
+            if (player.gameMode === 'creative') return true;
+            const lists = [hotbarInventory, mainInventory];
+            for (const list of lists) { for (let i = 0; i < list.length; i++) if (list[i] && list[i].id === 86) { list[i].count--; if (list[i].count <= 0) list[i] = null; updateHUD(); return true; } }
+            return false;
+        }
+
         function handleWorldInteraction() {
             if (player.dead || inventoryOpen || isPaused) return;
             const world = worlds[currentDimension];
             const activeItem = hotbarInventory[activeHotbarIndex];
             
-            // Interaction with entities
             const hitX = mouse.x + camera.x; const hitY = mouse.y + camera.y;
             const currentMobs = mobs[currentDimension];
             for (let m of currentMobs) {
                 if (hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
                     const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
                     if (dist < 120) {
-                        if (m.type === 'piglin' && activeItem?.id === 32) { // Gold Ingot Barter
+                        if (m.type === 'piglin' && activeItem?.id === 32) { 
                             activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
-                            const barterLoots = [28, 52, 58, 31, 51, 91]; // Obsidian, Glowstone, Flint, Iron, Netherrack, End Stone
+                            const barterLoots = [28, 52, 58, 31, 51, 91]; 
                             const won = barterLoots[Math.floor(Math.random() * barterLoots.length)];
                             addItemToInventory(won, Math.floor(Math.random() * 2) + 1);
                             createParticles(m.x + m.w/2, m.y + m.h/2, '#f1c40f', 15);
@@ -1399,12 +1461,9 @@
             const isNight = gameTime > 13000 && gameTime < 23000;
             const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
             
-            // End Boss Spawning
             if (currentDimension === 'the_end') {
                 const hasBoss = currentMobs.some(m => m.type === 'chrono_dragon');
-                if (!hasBoss && Math.random() < 0.01) {
-                    spawnMob('chrono_dragon', (WORLD_WIDTH/2)*TILE_SIZE, (WORLD_HEIGHT/2 - 10)*TILE_SIZE);
-                }
+                if (!hasBoss && Math.random() < 0.01) spawnMob('chrono_dragon', (WORLD_WIDTH/2)*TILE_SIZE, (WORLD_HEIGHT/2 - 10)*TILE_SIZE);
             }
 
             if (currentMobs.length < 15 && Math.random() < spawnChance) {
@@ -1415,7 +1474,7 @@
                         let types = []; 
                         if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } 
                         else if (currentDimension === 'nether') { types = ['zombie_pig', 'piglin']; } 
-                        if (types.length > 0) { spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } 
+                        if (types.length > 0) spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE);
                     } 
                 }
             }
@@ -1441,7 +1500,7 @@
                         m.vx *= 0.9; m.vy *= 0.9;
                         if (m.timer % 20 === 0) {
                             const angle = Math.atan2(dy, dx);
-                            projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, life: 100, color: '#f1c40f' });
+                            projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, life: 100, color: '#f1c40f', type: 'enemy' });
                         }
                         if (m.timer > 100) { m.state = 'idle'; m.timer = 0; }
                     }
@@ -1454,13 +1513,8 @@
                     m.vx *= 0.8; m.vy += GRAVITY; m.x += m.vx; resolveEntityCollision(m, 'x'); m.y += m.vy; m.grounded = false; resolveEntityCollision(m, 'y'); m.animTimer += Math.abs(m.vx) * 0.1;
                 }
             }
-
-            if (bossFound) {
-                bossHealthContainer.style.display = 'flex';
-                bossHealthFill.style.width = (bossFound.health / bossFound.maxHealth) * 100 + '%';
-            } else {
-                bossHealthContainer.style.display = 'none';
-            }
+            if (bossFound) { bossHealthContainer.style.display = 'flex'; bossHealthFill.style.width = (bossFound.health / bossFound.maxHealth) * 100 + '%'; } 
+            else { bossHealthContainer.style.display = 'none'; }
         }
 
         function resolveEntityCollision(e, axis) {
@@ -1557,16 +1611,59 @@
             const hours = Math.floor((gameTime / DAY_LENGTH) * 24); const minutes = Math.floor(((gameTime % (DAY_LENGTH / 24)) / (DAY_LENGTH / 24)) * 60);
             timeIndicatorEl.innerText = `${(hours % 12 || 12).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
             const world = worlds[currentDimension];
-            updateMobs();
+            
+            // Only host simulates mobs and projectiles
+            if (!isLanClient) {
+                updateMobs();
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const p = projectiles[i];
+                    p.x += p.vx; p.y += p.vy; 
+                    if (p.type === 'player_arrow') p.vy += 0.4; 
+                    p.life--;
+
+                    if (p.type === 'enemy') {
+                        if (Math.hypot(p.x - (player.x + player.w/2), p.y - (player.y + player.h/2)) < 30) { takeDamage(1); projectiles.splice(i, 1); continue; }
+                    } else if (p.type === 'player_arrow') {
+                        const currentMobs = mobs[currentDimension];
+                        let hit = false;
+                        for (let mIdx = currentMobs.length - 1; mIdx >= 0; mIdx--) {
+                            const m = currentMobs[mIdx];
+                            if (p.x >= m.x && p.x <= m.x + m.w && p.y >= m.y && p.y <= m.y + m.h) {
+                                m.health -= (p.damage || 2); m.vx = p.vx * 0.2; m.vy = -3;
+                                createParticles(p.x, p.y, '#ff0000', 10);
+                                if (m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); currentMobs.splice(mIdx, 1); if(m.type === 'chrono_dragon') createParticles(m.x+m.w/2, m.y+m.h/2, '#f1c40f', 100); }
+                                projectiles.splice(i, 1); hit = true; break;
+                            }
+                        }
+                        if (hit) continue;
+                        const wx = Math.floor(p.x / TILE_SIZE); const wy = Math.floor(p.y / TILE_SIZE);
+                        const block = world[`${wx},${wy}`];
+                        if (block && !BLOCK_TYPES[block].fluid) { projectiles.splice(i, 1); continue; }
+                    }
+                    if (p.life <= 0) projectiles.splice(i, 1);
+                }
+            }
+
             syncMultiplayerData();
 
-            for (let i = projectiles.length - 1; i >= 0; i--) {
-                const p = projectiles[i];
-                p.x += p.vx; p.y += p.vy; p.life--;
-                if (Math.hypot(p.x - (player.x + player.w/2), p.y - (player.y + player.h/2)) < 30) {
-                    takeDamage(1); projectiles.splice(i, 1); continue;
+            // Local Bow Charging
+            const activeItem = hotbarInventory[activeHotbarIndex];
+            if (!inventoryOpen && activeItem?.id === 85 && mouse.rightDown && hasArrows()) {
+                player.bowCharge = Math.min(30, player.bowCharge + 1);
+            } else if (player.bowCharge > 0) {
+                if (consumeArrow()) {
+                    const angle = Math.atan2((mouse.y + camera.y) - (player.y + player.h/2), (mouse.x + camera.x) - (player.x + player.w/2));
+                    const power = (player.bowCharge / 30) * 20 + 5;
+                    const dmg = Math.floor((player.bowCharge / 30) * 6 + 2);
+                    const vx = Math.cos(angle) * power;
+                    const vy = Math.sin(angle) * power;
+                    if (isLanHost || !lanSessionCode) {
+                        projectiles.push({ x: player.x + player.w/2, y: player.y + player.h/2, vx, vy, life: 200, color: '#8d6e63', type: 'player_arrow', damage: dmg });
+                    } else {
+                        notifyShot(player.x + player.w/2, player.y + player.h/2, vx, vy, dmg);
+                    }
                 }
-                if (p.life <= 0) projectiles.splice(i, 1);
+                player.bowCharge = 0;
             }
 
             if (player.fishing.active) {
@@ -1656,8 +1753,16 @@
             if (world) { const v1 = Math.max(0, Math.floor(camera.x/TILE_SIZE)-1), v2 = Math.min(WORLD_WIDTH-1, Math.ceil((camera.x+width)/TILE_SIZE)+1), v3 = Math.max(0, Math.floor(camera.y/TILE_SIZE)-1), v4 = Math.min(WORLD_HEIGHT-1, Math.ceil((camera.y+height)/TILE_SIZE)+1); for (let x = v1; x <= v2; x++) for (let y = v3; y <= v4; y++) if (world[`${x},${y}`]) drawBlock(x, y, world[`${x},${y}`]); }
             
             projectiles.forEach(p => {
-                ctx.fillStyle = p.color; ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p.x-4, p.y-4, 8, 8);
+                if (p.type === 'player_arrow') {
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(p.vy, p.vx));
+                    ctx.fillStyle = '#8d6e63'; ctx.fillRect(-10, -1, 20, 2);
+                    ctx.fillStyle = '#fff'; ctx.fillRect(-10, -2, 4, 4);
+                    ctx.fillStyle = '#424242'; ctx.fillRect(10, -2, 4, 4);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = p.color; ctx.fillRect(p.x - 4, p.y - 4, 8, 8);
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p.x-4, p.y-4, 8, 8);
+                }
             });
 
             const currentMobs = mobs[currentDimension] || [];
@@ -1665,7 +1770,18 @@
             Object.values(otherPlayers).forEach(p => { if (p.dim === currentDimension) drawEntity(p); });
             particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 50; ctx.fillRect(p.x, p.y, 6, 6); }); ctx.globalAlpha = 1;
             if (player.fishing.active) { ctx.strokeStyle = '#eee'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(player.x + player.w/2, player.y + player.h/3); ctx.lineTo(player.fishing.x, player.fishing.y); ctx.stroke(); ctx.fillStyle = (player.fishing.state === 'bite') ? '#f00' : '#fff'; ctx.fillRect(player.fishing.x - 4, player.fishing.y - 4, 8, 8); ctx.fillStyle = '#f00'; ctx.fillRect(player.fishing.x - 4, player.fishing.y - 4, 8, 4); }
-            if (!player.dead && player.invuln % 6 < 3) { ctx.save(); ctx.translate(player.x + player.w/2, player.y + player.h); ctx.scale(player.facing, player.squash); ctx.translate(-player.w/2, -player.h); ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, player.w, player.h - 10); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, player.w, player.h - 10); ctx.fillRect(4, player.h - 8, 8, 8); ctx.fillRect(player.w - 12, player.h - 8, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(player.w - 6, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(player.w - 10, 8, 4, 4); if (player.isFlying) { ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(-10, 10, 10, 5); ctx.fillRect(player.w, 10, 10, 5); } ctx.restore(); }
+            
+            if (!player.dead && player.invuln % 6 < 3) { 
+                ctx.save(); ctx.translate(player.x + player.w/2, player.y + player.h); ctx.scale(player.facing, player.squash); ctx.translate(-player.w/2, -player.h); 
+                ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, player.w, player.h - 10); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, player.w, player.h - 10); ctx.fillRect(4, player.h - 8, 8, 8); ctx.fillRect(player.w - 12, player.h - 8, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(player.w - 6, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(player.w - 10, 8, 4, 4); 
+                if (player.isFlying) { ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(-10, 10, 10, 5); ctx.fillRect(player.w, 10, 10, 5); } 
+                
+                if (player.bowCharge > 0) {
+                    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(player.w/2, -10, 15, -Math.PI/2, -Math.PI/2 + (player.bowCharge/30)*Math.PI*2); ctx.stroke();
+                }
+                ctx.restore(); 
+            }
             ctx.restore();
             if (currentDimension === 'overworld') { const isNight = gameTime > 13000 && gameTime < 23000; if (isNight) { const nightIntensity = Math.min(0.6, (gameTime - 13000) / 1000, (23000 - gameTime) / 1000); if (nightIntensity > 0) { ctx.fillStyle = `rgba(0, 0, 15, ${nightIntensity})`; ctx.fillRect(0, 0, width, height); } } }
         }
