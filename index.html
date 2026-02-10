@@ -8,7 +8,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update as fireUpdate, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update as fireUpdate, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDXUJ2ooY5S_pR2liDGe-afRZhNo0RI8Zs",
@@ -24,7 +24,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         window.m_db = db;
-        window.m_refs = { ref, set, onValue, fireUpdate, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect };
+        window.m_refs = { ref, set, onValue, fireUpdate, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, query, orderByChild, limitToLast };
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -78,7 +78,7 @@
             overflow-y: auto;
         }
 
-        #mode-selection-overlay, #join-lan-overlay {
+        #mode-selection-overlay, #join-lan-overlay, #leaderboard-overlay {
             position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.9);
@@ -372,6 +372,29 @@
             50% { opacity: 1; transform: scale(1.1); }
             100% { opacity: 0.9; transform: scale(1); }
         }
+
+        /* Leaderboard Specific */
+        #leaderboard-list {
+            width: 100%;
+            max-width: 500px;
+            background: #222;
+            border: 6px solid #444;
+            padding: 20px;
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .leaderboard-entry {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            border-bottom: 2px solid #333;
+            padding: 8px 0;
+        }
+        .leaderboard-rank { color: #f1c40f; width: 30px; }
+        .leaderboard-name { flex: 1; text-align: left; margin-left: 10px; color: #fff; }
+        .leaderboard-score { color: #76b052; }
     </style>
 </head>
 <body>
@@ -407,6 +430,14 @@
             <div class="btn grey" style="margin-top: 20px;" onclick="closeJoinLan()">BACK</div>
         </div>
 
+        <div id="leaderboard-overlay">
+            <h2 style="font-size: 18px; color: #fff; margin-bottom: 10px; text-shadow: 4px 4px #000;">TOP BLOCK BREAKERS</h2>
+            <div id="leaderboard-list">
+                <div class="leaderboard-entry"><span class="leaderboard-name">Loading...</span></div>
+            </div>
+            <div class="btn grey" onclick="closeLeaderboard()">CLOSE</div>
+        </div>
+
         <div id="pause-menu">
             <h2 style="font-size: 24px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">GAME PAUSED</h2>
             <div class="btn" onclick="togglePauseMenu()">RESUME</div>
@@ -421,6 +452,11 @@
                 <div class="title-clock"></div>
             </div>
             <h1 class="game-title">MOINK <span>O'CLOCK</span></h1>
+
+            <div style="margin-bottom: 20px;">
+                <div class="mc-label" style="color:#fff;">PLAYER NAME</div>
+                <input type="text" id="player-name-input" placeholder="PIGGY" maxlength="12" style="width: 200px;">
+            </div>
             
             <div class="worlds-container" id="worlds-container">
                 <div class="world-slot empty" id="slot-0">
@@ -437,6 +473,11 @@
                 </div>
             </div>
 
+            <div style="display:flex; gap: 10px; margin-top: 15px;">
+                <div class="btn gold" style="padding: 10px 20px; font-size: 10px;" onclick="showLeaderboard()">LEADERBOARD</div>
+                <div class="btn grey" style="padding: 10px 20px; font-size: 10px;" onclick="openJoinLan()">JOIN LAN</div>
+            </div>
+
             <div style="font-size: 6px; color: #555; margin-top: 20px;">ESC: PAUSE | WASD: MOVE | SPACE: JUMP | E: INV | CLICK: MINE/HIT</div>
         </div>
         <div class="ui-overlay">
@@ -445,6 +486,7 @@
                 <div id="dim-indicator" style="font-size: 10px; color: #ffb6c1; text-shadow: 2px 2px #000;">Overworld</div>
                 <div id="time-indicator" style="font-size: 7px; color: #f1c40f;">12:00 PM</div>
                 <div id="lan-indicator" style="font-size: 7px; color: #76b052; margin-top: 5px; display: none;">MULTIPLAYER ACTIVE</div>
+                <div id="blocks-broken-hud" style="font-size: 7px; color: #fff; margin-top: 5px;">BLOCKS BROKEN: 0</div>
             </div>
             <div class="hud-anchor">
                 <div class="hearts" id="hearts-container"></div>
@@ -664,6 +706,7 @@
         const pauseMenuEl = document.getElementById('pause-menu');
         const modeSelectionEl = document.getElementById('mode-selection-overlay');
         const joinLanOverlay = document.getElementById('join-lan-overlay');
+        const leaderboardOverlay = document.getElementById('leaderboard-overlay');
         const itemTooltipEl = document.getElementById('item-tooltip');
         const timeIndicatorEl = document.getElementById('time-indicator');
         const bossHealthContainer = document.getElementById('boss-health-container');
@@ -689,6 +732,7 @@
         let myPlayerId = Math.random().toString(36).substr(2, 9);
 
         let player = { 
+            name: 'PIGGY',
             x: (WORLD_WIDTH / 2) * TILE_SIZE, 
             y: 0, 
             vx: 0, 
@@ -706,7 +750,8 @@
             isFlying: false,
             lastJumpTime: 0,
             fishing: { active: false, x: 0, y: 0, vx: 0, vy: 0, state: 'idle', timer: 0, biteTimer: 0 },
-            bowCharge: 0
+            bowCharge: 0,
+            blocksBroken: 0
         };
         
         let mainInventory = new Array(27).fill(null);
@@ -738,6 +783,13 @@
             updateSlotsUI();
             setupInventoryUI();
             setupTitleParticles();
+
+            // Load name if exists
+            const savedName = localStorage.getItem('moinkcraft_player_name');
+            if (savedName) {
+                player.name = savedName;
+                document.getElementById('player-name-input').value = savedName;
+            }
 
             window.addEventListener('resize', resize);
             window.addEventListener('keydown', e => {
@@ -909,7 +961,8 @@
                 facing: player.facing,
                 animTimer: player.animTimer,
                 dim: currentDimension,
-                id: myPlayerId
+                id: myPlayerId,
+                name: player.name
             });
 
             // If host, sync simulation states
@@ -938,6 +991,44 @@
             const worldRef = ref(window.m_db, `sessions/${lanSessionCode}/world`);
             fireUpdate(worldRef, worlds);
         }
+
+        // Leaderboard Logic
+        function syncLeaderboard() {
+            if (!window.m_db || !player.name) return;
+            const { ref, set } = window.m_refs;
+            const leaderboardRef = ref(window.m_db, `leaderboard/${player.name}`);
+            set(leaderboardRef, { name: player.name, score: player.blocksBroken });
+        }
+
+        function showLeaderboard() {
+            leaderboardOverlay.style.display = 'flex';
+            const { ref, query, orderByChild, limitToLast, onValue } = window.m_refs;
+            const leaderboardRef = ref(window.m_db, 'leaderboard');
+            const q = query(leaderboardRef, orderByChild('score'), limitToLast(10));
+            
+            onValue(q, (snapshot) => {
+                const data = snapshot.val();
+                const listEl = document.getElementById('leaderboard-list');
+                listEl.innerHTML = '';
+                if (!data) {
+                    listEl.innerHTML = '<div class="leaderboard-entry"><span class="leaderboard-name">No entries yet!</span></div>';
+                    return;
+                }
+                const sorted = Object.values(data).sort((a, b) => b.score - a.score);
+                sorted.forEach((entry, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'leaderboard-entry';
+                    div.innerHTML = `
+                        <span class="leaderboard-rank">#${idx + 1}</span>
+                        <span class="leaderboard-name">${entry.name}</span>
+                        <span class="leaderboard-score">${entry.score} BLOCKS</span>
+                    `;
+                    listEl.appendChild(div);
+                });
+            });
+        }
+
+        function closeLeaderboard() { leaderboardOverlay.style.display = 'none'; }
 
         function togglePauseMenu() {
             if (player.dead) return;
@@ -983,6 +1074,10 @@
         }
 
         function handleSlotAction(slot, action) {
+            const nameInput = document.getElementById('player-name-input').value.trim();
+            player.name = nameInput || 'PIGGY';
+            localStorage.setItem('moinkcraft_player_name', player.name);
+
             if (action === 'play') {
                 const data = localStorage.getItem(`moinkcraft_world_${slot}`);
                 if (data) { activeSaveSlot = slot; loadGame(JSON.parse(data)); startGame(); } 
@@ -1005,13 +1100,14 @@
                 worlds,
                 tileEntities,
                 mobs,
-                player: { x: player.x, y: player.y, health: player.health, dimension: currentDimension, gameMode: player.gameMode },
+                player: { x: player.x, y: player.y, health: player.health, dimension: currentDimension, gameMode: player.gameMode, blocksBroken: player.blocksBroken },
                 inventory: { main: mainInventory, hotbar: hotbarInventory },
                 gameTime: gameTime,
                 timestamp: new Date().toLocaleString()
             };
             localStorage.setItem(`moinkcraft_world_${activeSaveSlot}`, JSON.stringify(saveData));
             showSaveIndicator();
+            syncLeaderboard();
         }
 
         function loadGame(data) {
@@ -1020,6 +1116,7 @@
             mobs = data.mobs || { overworld: [], nether: [], the_end: [] };
             player.x = data.player.x; player.y = data.player.y;
             player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
+            player.blocksBroken = data.player.blocksBroken || 0;
             currentDimension = data.player.dimension || 'overworld';
             mainInventory = data.inventory.main; hotbarInventory = data.inventory.hotbar;
             gameTime = data.gameTime || 6000;
@@ -1042,6 +1139,7 @@
             while(!world[`${startX},${startY}`] && startY < WORLD_HEIGHT) startY++;
             player.x = startX * TILE_SIZE; player.y = (startY - 2) * TILE_SIZE;
             player.health = MAX_HEALTH; player.gameMode = mode;
+            player.blocksBroken = 0;
             currentDimension = 'overworld'; updateHUD(); updateHeartsUI(); if (!fromJoin) saveGame(); 
         }
 
@@ -1543,6 +1641,7 @@
             let dimName = "Overworld"; if (currentDimension === 'nether') dimName = "The Nether"; else if (currentDimension === 'the_end') dimName = "The End";
             document.getElementById('dim-indicator').innerText = dimName; document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : (currentDimension === 'nether' ? '#ff4d4d' : '#9c27b0');
             heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex';
+            document.getElementById('blocks-broken-hud').innerText = `BLOCKS BROKEN: ${player.blocksBroken}`;
         }
 
         function updateHeartsUI() { heartsContainer.innerHTML = ''; for(let i=0; i<MAX_HEALTH; i++) { const heart = document.createElement('div'); heart.className = `heart ${i >= player.health ? 'empty' : ''}`; heartsContainer.appendChild(heart); } }
@@ -1606,7 +1705,9 @@
             if (player.invuln > 0) player.invuln--;
             gameTime = (gameTime + 2) % DAY_LENGTH;
             const hours = Math.floor((gameTime / DAY_LENGTH) * 24); const minutes = Math.floor(((gameTime % (DAY_LENGTH / 24)) / (DAY_LENGTH / 24)) * 60);
-            timeIndicatorEl.innerText = `${(hours % 12 || 12).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+            const timeIndicatorText = `${(hours % 12 || 12).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+            if (timeIndicatorEl.innerText !== timeIndicatorText) timeIndicatorEl.innerText = timeIndicatorText;
+
             const world = worlds[currentDimension];
             
             // Only host simulates mobs and projectiles
@@ -1682,7 +1783,7 @@
             particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE); const py = Math.floor((player.y + player.h/2) / TILE_SIZE); const standingOn = world[`${px},${py}`];
             if (standingOn === 60 || standingOn === 90) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { if (standingOn === 60) { currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld'; } else if (standingOn === 90) { currentDimension = currentDimension === 'overworld' ? 'the_end' : 'overworld'; } teleportTimer = 0; portalOverlay.style.opacity = 0; const targetWorld = worlds[currentDimension]; let found = false; const portalBlock = standingOn === 60 ? 60 : 90; for(let x=0; x<WORLD_WIDTH && !found; x++) { for(let y=0; y<WORLD_HEIGHT && !found; y++) { if(targetWorld[`${x},${y}`] === portalBlock) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } } } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let startY = 0; while(!targetWorld[`${Math.floor(player.x/TILE_SIZE)},${startY}`] && startY < WORLD_HEIGHT) startY++; player.y = (startY - 2) * TILE_SIZE; } updateHUD(); saveGame(); } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
-            if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const targetBlock = world[key]; if (targetBlock && !BLOCK_TYPES[targetBlock].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const block = BLOCK_TYPES[targetBlock]; if (Math.random() < 0.3 && getMiningSpeed() > 0) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1); if (miningProgress >= block.hardness) { if (player.gameMode !== 'creative') { addItemToInventory(block.drop || parseInt(targetBlock), 1); updateHUD(); } createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8); delete world[key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
+            if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const targetBlock = world[key]; if (targetBlock && !BLOCK_TYPES[targetBlock].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const block = BLOCK_TYPES[targetBlock]; if (Math.random() < 0.3 && getMiningSpeed() > 0) createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 1); if (miningProgress >= block.hardness) { if (player.gameMode !== 'creative') { addItemToInventory(block.drop || parseInt(targetBlock), 1); player.blocksBroken++; updateHUD(); if (player.blocksBroken % 10 === 0) syncLeaderboard(); } createParticles((wx+0.5)*TILE_SIZE, (wy+0.5)*TILE_SIZE, block.color, 8); delete world[key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
             let curSpeed = keys['shift'] ? SPRINT_SPEED : SPEED; if (player.isFlying) curSpeed *= 1.5; const inFluid = BLOCK_TYPES[world[`${px},${py}`]]?.fluid; const isOnLadder = BLOCK_TYPES[world[`${px},${py}`]]?.ladder;
             if (inFluid) { curSpeed *= 0.4; if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; if (world[`${px},${py}`] === 6) takeDamage(1.5); }
             if (keys['a'] || keys['arrowleft']) { player.vx -= curSpeed; player.facing = -1; player.animTimer += 0.8; } if (keys['d'] || keys['arrowright']) { player.vx += curSpeed; player.facing = 1; player.animTimer += 0.8; } player.vx *= FRICTION; player.x += player.vx; resolveCollision('x');
@@ -1718,7 +1819,7 @@
             }
             else {
                 ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, 34, 18); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, 34, 18); ctx.fillRect(4, 20, 8, 8); ctx.fillRect(22, 20, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(28, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(24, 8, 4, 4);
-                ctx.fillStyle = '#fff'; ctx.font = '5px "Press Start 2P"'; ctx.fillText(e.id?.substr(0,4) || "PIG", 0, -5);
+                ctx.fillStyle = '#fff'; ctx.font = '5px "Press Start 2P"'; ctx.textAlign = "center"; ctx.fillText(e.name || "PIG", 17, -5);
             }
             ctx.restore();
         }
