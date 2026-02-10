@@ -475,7 +475,6 @@
 
             <div style="display:flex; gap: 10px; margin-top: 15px;">
                 <div class="btn gold" style="padding: 10px 20px; font-size: 10px;" onclick="showLeaderboard()">LEADERBOARD</div>
-                <div class="btn grey" style="padding: 10px 20px; font-size: 10px;" onclick="openJoinLan()">JOIN LAN</div>
             </div>
 
             <div style="font-size: 6px; color: #555; margin-top: 20px;">ESC: PAUSE | WASD: MOVE | SPACE: JUMP | E: INV | CLICK: MINE/HIT</div>
@@ -1388,7 +1387,7 @@
                 for (let r = 0; r < recipe.pattern.length; r++) {
                     for (let c = 0; c < recipe.pattern[r].length; c++) {
                         const ingId = recipe.pattern[r][c];
-                        if (ingId !== null) { const gridIdx = (r + match.offsetY) * gridWidth + (c + match.offsetX); grid[gridIdx].count--; if (grid[gridIdx].count <= 0) grid[gridIdx] = null; }
+                        if (ingId !== null) { const gridIdx = (r + match.offsetY) * gridWidth + (c + Math.offsetX); grid[gridIdx].count--; if (grid[gridIdx].count <= 0) grid[gridIdx] = null; }
                     }
                 }
                 renderInventory();
@@ -1651,7 +1650,7 @@
             for (let x = 0; x < WORLD_WIDTH; x++) {
                 const surfaceY = Math.floor(Math.sin(x * 0.05 + seed) * 8 + 40);
                 for (let y = 0; y < WORLD_HEIGHT; y++) {
-                    let type = 0; if (y === WORLD_HEIGHT - 1) type = 29; else if (y > surfaceY) { type = 2; if (y > surfaceY + 3) { type = 3; const depth = y - surfaceY; const r = Math.random(); if (depth > 40 && r < 0.015) type = 6; else if (depth > 60 && r < 0.015) type = 26; else if (depth > 45 && r < 0.035) type = 27; else if (depth > 35 && r < 0.04) type = 25; else if (depth > 20 && r < 0.07) type = 14; else if (depth > 10 && r < 0.12) type = 13; } } else if (y >= seaLevel && !world[`${x},${y}`]) type = 63;
+                    let type = 0; if (y === WORLD_HEIGHT - 1) type = 29; else if (y > surfaceY) { type = 2; if (y > surfaceY + 3) { type = 3; const depth = y - surfaceY; const r = Math.random(); if (depth > 40 && r < 0.015) type = 6; else if (depth > 60 && r < 0.015) type = 26; else if (depth > 45 && r < 0.035) type = 27; else if (depth > 35 && r < 0.04) type = 25; else if (depth > 20 && r < 0.12) type = 14; else if (depth > 10 && r < 0.12) type = 13; } } else if (y >= seaLevel && !world[`${x},${y}`]) type = 63;
                     if (type) world[`${x},${y}`] = type;
                 }
                 for(let y=0; y<WORLD_HEIGHT; y++) { const k = `${x},${y}`; if(world[k] === 2 && !world[`${x},${y-1}`]) { world[k] = 1; if (Math.random() < 0.1) spawnTree(x, y - 1); break; } }
