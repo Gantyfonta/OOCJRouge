@@ -651,7 +651,8 @@
             'creeper_clock': { health: 8, speed: 4.5, behavior: 'explode', w: 24, h: 48, damage: 0, loot: 73, color: '#fdd835', stroke: '#f9a825', hostile: true },
             'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: 74, color: '#fff', stroke: '#ccc', hostile: false },
             'chrono_dragon': { health: 200, maxHealth: 200, speed: 6, behavior: 'boss', w: 120, h: 80, damage: 2, loot: 92, color: '#4a148c', stroke: '#9c27b0', hostile: true, boss: true },
-            'piglin': { health: 15, speed: 2.5, behavior: 'wander', w: 34, h: 32, damage: 2, color: '#e1a692', stroke: '#c17a60', hostile: false, barter: true }
+            'piglin': { health: 15, speed: 2.5, behavior: 'wander', w: 34, h: 32, damage: 2, color: '#e1a692', stroke: '#c17a60', hostile: false, barter: true },
+            'villager': { health: 20, speed: 2, behavior: 'wander', w: 24, h: 48, damage: 0, color: '#e1a692', stroke: '#8d6e63', hostile: false }
         };
 
         const RECIPES = [
@@ -1683,7 +1684,7 @@
                 for (let y = 0; y < WORLD_HEIGHT; y++) {
                     let type = 0; if (y === WORLD_HEIGHT - 1) type = 29; else if (y > surfaceY) { type = 2; if (y > surfaceY + 3) { type = 3; const depth = y - surfaceY; const r = Math.random(); 
                         if (depth > 40 && r < 0.015) type = 6; 
-                        else if (depth > 35 && r < 0.02) type = 26; // Diamond Ore (Made more accessible and likely)
+                        else if (depth > 35 && r < 0.02) type = 26; 
                         else if (depth > 40 && r < 0.035) type = 27; 
                         else if (depth > 30 && r < 0.04) type = 25; 
                         else if (depth > 20 && r < 0.12) type = 14; 
@@ -1693,9 +1694,60 @@
                 }
                 for(let y=0; y<WORLD_HEIGHT; y++) { const k = `${x},${y}`; if(world[k] === 2 && !world[`${x},${y-1}`]) { world[k] = 1; if (Math.random() < 0.1) spawnTree(x, y - 1); break; } }
             }
+            
+            // Village Spawning
+            if (Math.random() < 0.5) { // 50% chance to have a village in a world
+                const villageX = 10 + Math.floor(Math.random() * (WORLD_WIDTH - 20));
+                spawnVillage(villageX);
+            }
+
             const portalX = 20 + Math.floor(Math.random() * (WORLD_WIDTH - 40)); let portalY = WORLD_HEIGHT - 20;
             for(let x = -2; x <= 2; x++) { for(let y = -2; y <= 2; y++) { const k = `${portalX + x},${portalY + y}`; if (Math.abs(x) === 2 || Math.abs(y) === 2) world[k] = 28; else delete world[k]; } }
             world[`${portalX},${portalY}`] = 90; 
+        }
+
+        function spawnVillage(centerX) {
+            const world = worlds.overworld;
+            const villageWidth = 20;
+            const startX = Math.max(5, centerX - Math.floor(villageWidth / 2));
+            const endX = Math.min(WORLD_WIDTH - 5, startX + villageWidth);
+
+            for (let vx = startX; vx < endX; vx += 7) {
+                // Find surface
+                let vy = 0;
+                while (!world[`${vx},${vy}`] && vy < WORLD_HEIGHT) vy++;
+                if (vy < WORLD_HEIGHT && world[`${vx},${vy}`] === 1) {
+                    spawnHouse(vx, vy - 1);
+                }
+            }
+        }
+
+        function spawnHouse(x, y) {
+            const world = worlds.overworld;
+            const hw = 5;
+            const hh = 4;
+            // Clear space and build
+            for (let dx = 0; dx < hw; dx++) {
+                for (let dy = 0; dy < hh; dy++) {
+                    const bx = x + dx;
+                    const by = y - dy;
+                    if (bx >= WORLD_WIDTH) continue;
+                    // Walls
+                    if (dx === 0 || dx === hw - 1 || dy === 0 || dy === hh - 1) {
+                        world[`${bx},${by}`] = (dy === 0) ? 7 : 10; // Cobble foundation, wood walls
+                    } else {
+                        delete world[`${bx},${by}`]; // Interior
+                    }
+                }
+            }
+            // Add a window
+            world[`${x + 2},${y - 2}`] = 9;
+            // Roof
+            for (let dx = -1; dx <= hw; dx++) {
+                world[`${x + dx},${y - hh}`] = 10;
+            }
+            // Spawn a villager
+            spawnMob('villager', (x + 2) * TILE_SIZE, (y - 1) * TILE_SIZE);
         }
 
         function spawnTree(x, y) { const world = worlds.overworld; const height = 4 + Math.floor(Math.random() * 2); for(let i=0; i<height; i++) { const logK = `${x},${y-i}`; if(!world[logK] || BLOCK_TYPES[world[logK]]?.nonSolid) world[logK] = 4; } for(let lx=-2; lx<=2; lx++) for(let ly=-2; ly<=0; ly++) { const leafK = `${x+lx},${y-height+ly}`; if(!world[leafK] && Math.abs(lx) + Math.abs(ly) < 4) world[leafK] = 5; } }
@@ -1884,6 +1936,13 @@
             }
             else if (e.type === 'piglin') {
                 ctx.fillStyle = '#e1a692'; ctx.fillRect(4, 0, e.w - 8, e.h - 10); ctx.fillStyle = '#fdd835'; ctx.fillRect(2, 10, e.w - 4, e.h - 20); ctx.fillStyle = '#e1a692'; ctx.fillRect(0, e.h - 10, 10, 10); ctx.fillRect(e.w - 10, e.h - 10, 10, 10); ctx.fillStyle = '#c17a60'; ctx.fillRect(-4, 4, 6, 12); ctx.fillRect(e.w - 2, 4, 6, 12); ctx.fillStyle = '#fff'; ctx.fillRect(e.w - 10, 4, 4, 4);
+            }
+            else if (e.type === 'villager') {
+                ctx.fillStyle = '#8d6e63'; ctx.fillRect(0, 12, e.w, e.h - 12); // Robe
+                ctx.fillStyle = '#e1a692'; ctx.fillRect(4, 0, e.w - 8, 16); // Head
+                ctx.fillStyle = '#c17a60'; ctx.fillRect(e.w / 2 - 2, 8, 6, 8); // Nose
+                ctx.fillStyle = '#000'; ctx.fillRect(6, 4, 3, 3); // Eye
+                ctx.fillRect(e.w - 9, 4, 3, 3); // Eye
             }
             else {
                 ctx.fillStyle = '#ffb6c1'; ctx.fillRect(0, 4, 34, 18); ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 2; ctx.strokeRect(0, 4, 34, 18); ctx.fillRect(4, 20, 8, 8); ctx.fillRect(22, 20, 8, 8); ctx.fillStyle = '#ff69b4'; ctx.fillRect(28, 12, 10, 10); ctx.fillStyle = '#000'; ctx.fillRect(24, 8, 4, 4);
