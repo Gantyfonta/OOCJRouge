@@ -244,7 +244,7 @@
         .hud-slot.active { border-color: #fff; background: rgba(255, 255, 255, 0.25); box-shadow: inset 0 0 10px rgba(255,255,255,0.5); }
 
         #inventory-screen { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
-        .mc-container { background: #c6c6c6; border: 6px solid; border-color: #eee #444 #444 #eee; padding: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 15px; position: relative; width: 600px; }
+        .mc-container { background: #c6c6c6; border: 6px solid; border-color: #eee #444 #444 #eee; padding: 20px; box-shadow: 8px 8px 0 rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 15px; position: relative; width: 620px; max-height: 95vh; overflow-y: auto; }
         .mc-label { color: #222; font-size: 9px; margin-bottom: 6px; font-weight: bold; }
         .mc-slot { width: 48px; height: 48px; background: #8b8b8b; border: 4px solid; border-color: #373737 #fefefe #fefefe #373737; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
         .mc-slot:hover { background: #aaa; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3); }
@@ -395,6 +395,11 @@
         .leaderboard-rank { color: #f1c40f; width: 30px; }
         .leaderboard-name { flex: 1; text-align: left; margin-left: 10px; color: #fff; }
         .leaderboard-score { color: #76b052; }
+
+        /* Trade List Styling */
+        #trade-list-container::-webkit-scrollbar { width: 8px; }
+        #trade-list-container::-webkit-scrollbar-track { background: #373737; }
+        #trade-list-container::-webkit-scrollbar-thumb { background: #888; border: 2px solid #373737; }
     </style>
 </head>
 <body>
@@ -495,7 +500,35 @@
         </div>
         <div id="inventory-screen">
             <div class="mc-container" id="mc-inventory">
-                <div class="top-section">
+                <!-- Upper Views for Special Interacts -->
+                <div id="upper-inventory-view">
+                    <div id="chest-view" style="display: none;">
+                        <div class="mc-label">Chest</div>
+                        <div class="mc-grid" style="grid-template-columns: repeat(9, 48px); margin-bottom: 20px;" id="chest-grid"></div>
+                    </div>
+                    <div id="trading-view" style="display: none;">
+                        <div class="mc-label">Villager Trading</div>
+                        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                            <!-- List of possible trades -->
+                            <div id="trade-list-container" style="width: 240px; height: 200px; background: #8b8b8b; border: 4px solid #373737; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Populated by JS -->
+                            </div>
+                            <!-- Active trading slots -->
+                            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; background: #8b8b8b; border: 4px solid #373737;">
+                                 <div style="display: flex; align-items: center; gap: 10px;">
+                                     <div class="mc-slot" data-type="trade-input" data-idx="0"></div>
+                                     <span style="color: #222; font-weight: bold;">+</span>
+                                     <div class="mc-slot" data-type="trade-input" data-idx="1"></div>
+                                     <div class="arrow-right"></div>
+                                     <div class="mc-slot output" id="trade-output"></div>
+                                 </div>
+                                 <div style="font-size: 6px; color: #444; text-align: center; line-height: 1.2;">Place items in slots above<br>to execute trade.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="top-section" id="standard-top-section">
                     <div id="pig-preview" style="width: 100px; height: 120px; background: #8b8b8b; border: 4px solid #373737; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
                         <span style="font-size: 8px; color: #444; font-weight: bold;">PIGGY</span>
                         <div style="position: absolute; width: 40px; height: 30px; background: #ffb6c1; border: 2px solid #ff69b4; border-radius: 2px;">
@@ -643,7 +676,9 @@
             90: { name: 'End Portal', color: '#000', stroke: '#4a148c', hardness: 999, animated: true, teleport: true, toDimension: 'the_end' },
             91: { name: 'End Stone', color: '#fff9c4', stroke: '#fbc02d', hardness: 50, tool: 'pickaxe', texture: 'end_stone', requiredTier: 1 },
             92: { name: 'Master Clock Core', color: '#9c27b0', stroke: '#f1c40f', item: true, special: true },
-            93: { name: 'Sapling', color: '#76b052', stroke: '#3e5b2e', hardness: 5, nonSolid: true, item: true }
+            93: { name: 'Sapling', color: '#76b052', stroke: '#3e5b2e', hardness: 5, nonSolid: true },
+            94: { name: 'Chest', color: '#8d6e63', stroke: '#5d4037', hardness: 30, tool: 'axe', chest: true },
+            95: { name: 'Emerald', color: '#2ecc71', stroke: '#27ae60', item: true, type: 'currency' }
         };
 
         const MOB_TYPES = {
@@ -652,38 +687,26 @@
             'chicken': { health: 4, speed: 2, behavior: 'wander', w: 20, h: 20, damage: 0, loot: 74, color: '#fff', stroke: '#ccc', hostile: false },
             'chrono_dragon': { health: 200, maxHealth: 200, speed: 6, behavior: 'boss', w: 120, h: 80, damage: 2, loot: 92, color: '#4a148c', stroke: '#9c27b0', hostile: true, boss: true },
             'piglin': { health: 15, speed: 2.5, behavior: 'wander', w: 34, h: 32, damage: 2, color: '#e1a692', stroke: '#c17a60', hostile: false, barter: true },
-            'villager': { health: 20, speed: 2, behavior: 'wander', w: 24, h: 48, damage: 0, color: '#e1a692', stroke: '#8d6e63', hostile: false }
+            'villager': { health: 20, speed: 2, behavior: 'wander', w: 24, h: 48, damage: 0, color: '#e1a692', stroke: '#8d6e63', hostile: false, tradeable: true }
         };
+
+        const VILLAGER_TRADES = [
+            { input: [{ id: 4, count: 12 }], output: { id: 95, count: 1 } },
+            { input: [{ id: 30, count: 8 }], output: { id: 95, count: 1 } },
+            { input: [{ id: 95, count: 4 }], output: { id: 31, count: 1 } },
+            { input: [{ id: 95, count: 12 }], output: { id: 33, count: 1 } },
+            { input: [{ id: 95, count: 2 }], output: { id: 11, count: 1 } },
+            { input: [{ id: 72, count: 5 }], output: { id: 95, count: 1 } },
+            { input: [{ id: 10, count: 16 }], output: { id: 95, count: 1 } }
+        ];
 
         const RECIPES = [
             { pattern: [[4]], result: 10, amount: 4 },
             { pattern: [[10], [10]], result: 15, amount: 4 },
             { pattern: [[10, 10], [10, 10]], result: 12, amount: 1 },
+            { pattern: [[10, 10, 10], [10, null, 10], [10, 10, 10]], result: 94, amount: 1 }, // Chest
             { pattern: [[15, null, 15], [15, 15, 15], [15, null, 15]], result: 35, amount: 3 },
-            { pattern: [[7, 7, 7], [7, null, 7], [7, 7, 7]], result: 67, amount: 1 }, 
-            { pattern: [[7, 7, 7], [null, 15, null], [null, 15, null]], result: 19, amount: 1 },
-            { pattern: [[10, 10, 10], [null, 15, null], [null, 15, null]], result: 16, amount: 1 },
-            { pattern: [[31, 31, 31], [null, 15, null], [null, 15, null]], result: 22, amount: 1 },
-            { pattern: [[33, 33, 33], [null, 15, null], [null, 15, null]], result: 82, amount: 1 },
-            { pattern: [[10], [15], [15]], result: 17, amount: 1 },
-            { pattern: [[7], [15], [15]], result: 20, amount: 1 },
-            { pattern: [[31], [15], [15]], result: 23, amount: 1 },
-            { pattern: [[33], [15], [15]], result: 83, amount: 1 },
-            { pattern: [[10, 10], [10, 15], [null, 15]], result: 18, amount: 1 },
-            { pattern: [[7, 7], [7, 15], [null, 15]], result: 21, amount: 1 },
-            { pattern: [[31, 31], [31, 15], [null, 15]], result: 24, amount: 1 },
-            { pattern: [[33, 33], [33, 15], [null, 15]], result: 84, amount: 1 },
-            { pattern: [[null, 32, null], [32, 34, 32], [null, 32, null]], result: 11, amount: 1 },
-            { pattern: [[31, null, 31], [null, 31, null]], result: 64, amount: 1 },
-            { pattern: [[58, 31]], result: 59, amount: 1 },
-            { pattern: [[null, null, 15], [null, 15, 73], [15, null, 73]], result: 71, amount: 1 },
-            { pattern: [[10], [10], [15]], result: 76, amount: 1 },
-            { pattern: [[7], [7], [15]], result: 77, amount: 1 },
-            { pattern: [[31], [31], [15]], result: 78, amount: 1 },
-            { pattern: [[32], [32], [15]], result: 79, amount: 1 },
-            { pattern: [[33], [33], [15]], result: 80, amount: 1 },
-            { pattern: [[null, 15, 73], [15, null, 73], [null, 15, 73]], result: 85, amount: 1 }, // Bow
-            { pattern: [[58], [15], [75]], result: 86, amount: 4 } // Arrow
+            { pattern: [[7, 7, 7], [7, null, 7], [7, 7, 7]], result: 67, amount: 1 }
         ];
 
         const SMELTING_RECIPES = {
@@ -770,6 +793,10 @@
 
         let isUsingTable = false;
         let activeFurnacePos = null; 
+        let activeChestPos = null;
+        let activeVillager = null;
+        let tradingSlots = [null, null]; // Trade input slots
+        let tradeOutput = null;
 
         let miningTarget = null;
         let miningProgress = 0;
@@ -1179,25 +1206,107 @@
         function startGame() { gameStarted = true; isPaused = false; document.getElementById('title-screen').style.display = 'none'; }
         function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
 
-        function toggleInventory(useTable = false, furnacePos = null) {
+        function renderTradeList() {
+            const container = document.getElementById('trade-list-container');
+            container.innerHTML = '';
+            VILLAGER_TRADES.forEach((trade, idx) => {
+                const itemEl = document.createElement('div');
+                itemEl.style.display = 'flex';
+                itemEl.style.alignItems = 'center';
+                itemEl.style.gap = '8px';
+                itemEl.style.padding = '8px';
+                itemEl.style.background = '#aaa';
+                itemEl.style.border = '4px solid #555';
+                itemEl.style.boxShadow = 'inset -2px -2px #777, inset 2px 2px #ccc';
+                itemEl.style.cursor = 'default';
+
+                // Inputs
+                trade.input.forEach((inp, i) => {
+                    const wrap = document.createElement('div');
+                    wrap.style.transform = 'scale(0.8)';
+                    wrap.appendChild(createItemVisual(inp.id, inp.count));
+                    itemEl.appendChild(wrap);
+                    if (i < trade.input.length - 1) {
+                        const plus = document.createElement('span');
+                        plus.innerText = '+';
+                        plus.style.fontSize = '8px';
+                        plus.style.color = '#333';
+                        plus.style.fontWeight = 'bold';
+                        itemEl.appendChild(plus);
+                    }
+                });
+
+                // Arrow
+                const arrow = document.createElement('div');
+                arrow.className = 'arrow-right';
+                arrow.style.transform = 'scale(0.6)';
+                arrow.style.opacity = '0.6';
+                itemEl.appendChild(arrow);
+
+                // Output
+                const outWrap = document.createElement('div');
+                outWrap.style.transform = 'scale(0.8)';
+                outWrap.appendChild(createItemVisual(trade.output.id, trade.output.count));
+                itemEl.appendChild(outWrap);
+
+                container.appendChild(itemEl);
+            });
+        }
+
+        function toggleInventory(useTable = false, furnacePos = null, chestPos = null, villager = null) {
             if (isPaused) return;
             inventoryOpen = !inventoryOpen; 
             isUsingTable = useTable;
             activeFurnacePos = furnacePos;
+            activeChestPos = chestPos;
+            activeVillager = villager;
+
             const screen = document.getElementById('inventory-screen');
             screen.style.display = inventoryOpen ? 'flex' : 'none';
-            const craftView = document.getElementById('crafting-view');
+            
+            const standardTop = document.getElementById('standard-top-section');
+            const chestView = document.getElementById('chest-view');
+            const tradingView = document.getElementById('trading-view');
             const furnaceView = document.getElementById('furnace-view');
-            if (activeFurnacePos) { craftView.style.display = 'none'; furnaceView.style.display = 'block'; } else {
-                craftView.style.display = 'block'; furnaceView.style.display = 'none';
-                document.getElementById('crafting-grid-2x2').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'grid';
-                document.getElementById('crafting-grid-3x3').style.display = isUsingTable ? 'grid' : 'none';
-                document.getElementById('pig-preview').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'flex';
+            const craftingView = document.getElementById('crafting-view');
+
+            // Reset visibility
+            standardTop.style.display = 'none';
+            chestView.style.display = 'none';
+            tradingView.style.display = 'none';
+            furnaceView.style.display = 'none';
+            craftingView.style.display = 'none';
+
+            if (activeChestPos) {
+                chestView.style.display = 'block';
+            } else if (activeVillager) {
+                tradingView.style.display = 'block';
+                renderTradeList();
+            } else {
+                standardTop.style.display = 'flex';
+                if (activeFurnacePos) {
+                    furnaceView.style.display = 'block';
+                } else {
+                    craftingView.style.display = 'block';
+                    document.getElementById('crafting-grid-2x2').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'grid';
+                    document.getElementById('crafting-grid-3x3').style.display = isUsingTable ? 'grid' : 'none';
+                    document.getElementById('pig-preview').style.display = (isUsingTable || player.gameMode === 'creative') ? 'none' : 'flex';
+                }
             }
+
             if (!inventoryOpen) {
                 const returnItems = (grid) => { grid.forEach((item, i) => { if (item) addItemToInventory(item.id, item.count); grid[i] = null; }); };
-                if (!activeFurnacePos) { returnItems(craftingGrid2x2); returnItems(craftingGrid3x3); }
+                if (!activeFurnacePos && !activeChestPos && !activeVillager) { 
+                    returnItems(craftingGrid2x2); 
+                    returnItems(craftingGrid3x3); 
+                }
+                if (activeVillager) {
+                    returnItems(tradingSlots);
+                    tradeOutput = null;
+                }
                 activeFurnacePos = null;
+                activeChestPos = null;
+                activeVillager = null;
                 if (heldItem && player.gameMode !== 'creative') { addItemToInventory(heldItem.id, heldItem.count); heldItem = null; }
                 else if (heldItem) { heldItem = null; }
                 updateHeldItemCursor(); saveGame();
@@ -1225,15 +1334,23 @@
                 const slot = document.createElement('div'); slot.className = 'mc-slot';
                 slot.dataset.type = 'hotbar'; slot.dataset.idx = i; setupSlot(slot); hbGrid.appendChild(slot);
             }
+            const chestGrid = document.getElementById('chest-grid');
+            chestGrid.innerHTML = '';
+            for (let i = 0; i < 27; i++) {
+                const slot = document.createElement('div'); slot.className = 'mc-slot';
+                slot.dataset.type = 'chest'; slot.dataset.idx = i; setupSlot(slot); chestGrid.appendChild(slot);
+            }
             document.querySelectorAll('#crafting-grid-2x2 .mc-slot').forEach(setupSlot);
             document.querySelectorAll('#crafting-grid-3x3 .mc-slot').forEach(setupSlot);
             document.querySelectorAll('#furnace-view .mc-slot').forEach(setupSlot);
+            document.querySelectorAll('#trading-view .mc-slot').forEach(setupSlot);
             document.getElementById('crafting-output').addEventListener('mousedown', (e) => { if (e.button === 0) handleCraftingOutputClick(); });
+            document.getElementById('trade-output').addEventListener('mousedown', (e) => { if (e.button === 0) handleTradeOutputClick(); });
         }
 
         function renderInventory() {
             const mainGrid = document.getElementById('main-inventory-grid');
-            if (player.gameMode === 'creative' && !activeFurnacePos) {
+            if (player.gameMode === 'creative' && !activeFurnacePos && !activeChestPos && !activeVillager) {
                 mainGrid.innerHTML = '';
                 Object.keys(BLOCK_TYPES).forEach((id) => {
                     const slot = document.createElement('div');
@@ -1256,7 +1373,26 @@
                 if (item) slot.appendChild(createItemVisual(item.id, item.count)); 
             });
 
-            if (activeFurnacePos) {
+            if (activeChestPos) {
+                const chest = tileEntities[currentDimension][activeChestPos];
+                if (chest && chest.items) {
+                    const cSlots = document.getElementById('chest-grid').querySelectorAll('.mc-slot');
+                    chest.items.forEach((item, i) => {
+                        const slot = cSlots[i]; slot.innerHTML = '';
+                        if (item) slot.appendChild(createItemVisual(item.id, item.count));
+                    });
+                }
+            } else if (activeVillager) {
+                const tSlots = document.querySelectorAll('#trading-view .mc-slot[data-type="trade-input"]');
+                tradingSlots.forEach((item, i) => {
+                    const slot = tSlots[i]; slot.innerHTML = '';
+                    if (item) slot.appendChild(createItemVisual(item.id, item.count));
+                });
+                checkTrade();
+                const tOutput = document.getElementById('trade-output');
+                tOutput.innerHTML = '';
+                if (tradeOutput) tOutput.appendChild(createItemVisual(tradeOutput.id, tradeOutput.count));
+            } else if (activeFurnacePos) {
                 const f = tileEntities[currentDimension][activeFurnacePos];
                 if (f && f.fuel !== undefined) {
                     const slots = { 'furnace-input': f.input, 'furnace-fuel': f.fuel, 'furnace-output': f.output };
@@ -1284,6 +1420,39 @@
             updateHUD();
         }
 
+        function checkTrade() {
+            tradeOutput = null;
+            const filledInput = tradingSlots.filter(s => s !== null);
+            for (let trade of VILLAGER_TRADES) {
+                let matches = true;
+                if (filledInput.length !== trade.input.length) continue;
+                for (let i = 0; i < trade.input.length; i++) {
+                    const s = tradingSlots[i];
+                    if (!s || s.id !== trade.input[i].id || s.count < trade.input[i].count) {
+                        matches = false; break;
+                    }
+                }
+                if (matches) {
+                    tradeOutput = { id: trade.output.id, count: trade.output.count };
+                    return;
+                }
+            }
+        }
+
+        function handleTradeOutputClick() {
+            if (tradeOutput && (!heldItem || (heldItem.id === tradeOutput.id && heldItem.count + tradeOutput.count <= 64))) {
+                const trade = VILLAGER_TRADES.find(t => t.output.id === tradeOutput.id);
+                // Consume inputs
+                trade.input.forEach((req, idx) => {
+                    tradingSlots[idx].count -= req.count;
+                    if (tradingSlots[idx].count <= 0) tradingSlots[idx] = null;
+                });
+                if (!heldItem) heldItem = { ...tradeOutput }; else heldItem.count += tradeOutput.count;
+                renderInventory();
+                updateHeldItemCursor();
+            }
+        }
+
         function createItemVisual(id, count, scale = 1) {
             const block = BLOCK_TYPES[id];
             if (!block) return document.createElement('div');
@@ -1295,7 +1464,12 @@
             };
 
             const sizeMod = scale;
-            if (id === 93) { 
+            if (id === 95) { // Emerald
+                drawShape({ width: (18*sizeMod)+'px', height: (26*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' });
+            } else if (id === 94) { // Chest
+                drawShape({ width: (30*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px' });
+                drawShape({ width: (6*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#f1c40f', left: (12*sizeMod)+'px', top: (10*sizeMod)+'px', border: `${sizeMod}px solid #b8860b` });
+            } else if (id === 93) { 
                 drawShape({ width: (4*sizeMod)+'px', height: (16*sizeMod)+'px', background: '#5c3b1e', bottom: '4px' }); 
                 drawShape({ width: (12*sizeMod)+'px', height: (12*sizeMod)+'px', background: '#76b052', border: `${sizeMod}px solid #3e5b2e`, borderRadius: '0 50% 0 50%', top: '4px' });
             } else if (id === 92) { 
@@ -1367,6 +1541,8 @@
             else if (type === 'hotbar') targetArray = hotbarInventory;
             else if (type === 'craft2') targetArray = craftingGrid2x2;
             else if (type === 'craft3') targetArray = craftingGrid3x3;
+            else if (type === 'chest') targetArray = tileEntities[currentDimension][activeChestPos].items;
+            else if (type === 'trade-input') targetArray = tradingSlots;
             else if (type && typeof type === 'string' && type.startsWith('furnace-')) {
                 const f = tileEntities[currentDimension][activeFurnacePos];
                 if (!f) return;
@@ -1459,9 +1635,12 @@
                 else if (type === 'hotbar') item = hotbarInventory[idx]; 
                 else if (type === 'craft2') item = craftingGrid2x2[idx]; 
                 else if (type === 'craft3') item = craftingGrid3x3[idx]; 
+                else if (type === 'chest') { const c = tileEntities[currentDimension][activeChestPos]; if (c) item = c.items[idx]; }
+                else if (type === 'trade-input') item = tradingSlots[idx];
                 else if (type && typeof type === 'string' && type.startsWith('furnace-')) { const f = tileEntities[currentDimension][activeFurnacePos]; if (f) item = f[type.replace('furnace-', '')]; } 
                 else if (type === 'creative') item = { id: parseInt(invSlot.dataset.itemId) }; 
                 else if (invSlot.id === 'crafting-output') item = craftingOutput;
+                else if (invSlot.id === 'trade-output') item = tradeOutput;
                 if (item) { const block = BLOCK_TYPES[item.id]; tooltipText = block?.name || ""; if (block?.toolType === 'sword') subText = `\nDAMAGE: ${block.damage}`; }
             } else if (hudSlot) {
                 const slots = document.querySelectorAll('.hud-slot'); let slotsArr = Array.from(slots); const idx = slotsArr.indexOf(hudSlot); const item = hotbarInventory[idx];
@@ -1522,6 +1701,11 @@
                 if (hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
                     const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
                     if (dist < 120) {
+                        if (m.tradeable) {
+                             activeVillager = m;
+                             toggleInventory(false, null, null, m);
+                             return;
+                        }
                         if (m.type === 'piglin' && activeItem?.id === 32) { 
                             activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
                             const barterLoots = [28, 52, 58, 31, 51, 91]; 
@@ -1547,6 +1731,13 @@
             if (mouse.rightDown) {
                 const block = BLOCK_TYPES[world[key]];
                 if (block?.table) { toggleInventory(true); return; }
+                if (block?.chest) {
+                    if (!tileEntities[currentDimension][key]) {
+                        tileEntities[currentDimension][key] = { items: new Array(27).fill(null) };
+                    }
+                    toggleInventory(false, null, key);
+                    return;
+                }
                 if (block?.furnace) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, cookProgress: 0 }; } toggleInventory(false, key); return; }
                 if (activeItem && activeItem.id === 64) { if (world[key] === 63) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(65, 1); updateHUD(); broadcastWorldChange(); return; } else if (world[key] === 6) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(66, 1); updateHUD(); broadcastWorldChange(); return; } }
                 if (activeItem && (activeItem.id === 65 || activeItem.id === 66)) { if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = (activeItem.id === 65 ? 63 : 6); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); updateHUD(); broadcastWorldChange(); return; } }
@@ -1746,11 +1937,32 @@
             for (let dx = -1; dx <= hw; dx++) {
                 world[`${x + dx},${y - hh}`] = 10;
             }
+
+            // Add a chest with loot
+            const chestPos = `${x + 2},${y - 1}`;
+            world[chestPos] = 94;
+            tileEntities.overworld[chestPos] = { items: new Array(27).fill(null) };
+            tileEntities.overworld[chestPos].items[0] = { id: 30, count: 5 + Math.floor(Math.random() * 5) }; // Coal
+            if (Math.random() < 0.4) tileEntities.overworld[chestPos].items[1] = { id: 95, count: 1 + Math.floor(Math.random() * 2) }; // Emeralds
+            if (Math.random() < 0.2) tileEntities.overworld[chestPos].items[2] = { id: 11, count: 1 }; // Clock
+
             // Spawn a villager
             spawnMob('villager', (x + 2) * TILE_SIZE, (y - 1) * TILE_SIZE);
         }
 
-        function spawnTree(x, y) { const world = worlds.overworld; const height = 4 + Math.floor(Math.random() * 2); for(let i=0; i<height; i++) { const logK = `${x},${y-i}`; if(!world[logK] || BLOCK_TYPES[world[logK]]?.nonSolid) world[logK] = 4; } for(let lx=-2; lx<=2; lx++) for(let ly=-2; ly<=0; ly++) { const leafK = `${x+lx},${y-height+ly}`; if(!world[leafK] && Math.abs(lx) + Math.abs(ly) < 4) world[leafK] = 5; } }
+        function spawnTree(x, y, dim = 'overworld') { 
+            const world = worlds[dim]; 
+            const height = 4 + Math.floor(Math.random() * 2); 
+            for(let i=0; i<height; i++) { 
+                const logK = `${x},${y-i}`; 
+                if(!world[logK] || BLOCK_TYPES[world[logK]]?.nonSolid) world[logK] = 4; 
+            } 
+            for(let lx=-2; lx<=2; lx++) 
+                for(let ly=-2; ly<=0; ly++) { 
+                    const leafK = `${x+lx},${y-height+ly}`; 
+                    if(!world[leafK] && Math.abs(lx) + Math.abs(ly) < 4) world[leafK] = 5; 
+                } 
+        }
 
         function generateNether() { const world = worlds.nether; const seed = Math.random() * 2000; for (let x = 0; x < WORLD_WIDTH; x++) { for(let y=0; y<5; y++) world[`${x},${y}`] = 51; for(let y=WORLD_HEIGHT-5; y<WORLD_HEIGHT; y++) world[`${x},${y}`] = 51; for(let y=WORLD_HEIGHT-10; y<WORLD_HEIGHT-5; y++) world[`${x},${y}`] = 6; for (let y = 5; y < WORLD_HEIGHT - 10; y++) { if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) { world[`${x},${y}`] = 51; if (Math.random() < 0.02) world[`${x},${y}`] = 52; if (Math.random() < 0.01) world[`${x},${y}`] = 25; } } } }
 
@@ -1879,7 +2091,7 @@
                     if (ent.timer <= 0) {
                         const [sx, sy] = pos.split(',').map(Number);
                         delete world[pos];
-                        spawnTree(sx, sy);
+                        spawnTree(sx, sy, currentDimension);
                         delete dimensionEntities[pos];
                         broadcastWorldChange();
                     }
@@ -1892,7 +2104,7 @@
                     if (f.burnTime <= 0 && canSmelt && f.fuel) { const fuelVal = FUEL_VALUES[f.fuel.id]; if (fuelVal) { f.burnTime = fuelVal; f.maxBurnTime = fuelVal; f.fuel.count--; if (f.fuel.count <= 0) f.fuel = null; if (activeFurnacePos === pos) renderInventory(); } }
                     if (f.burnTime <= 0 && !canSmelt) f.cookProgress = 0; if (activeFurnacePos === pos && inventoryOpen) renderInventory();
                 } else {
-                    delete dimensionEntities[pos];
+                    // Logic for other TEs if any
                 }
             }
 
@@ -1958,6 +2170,10 @@
             if (b.texture === 'glass') { ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, size, size); }
             else if (type === 35) { ctx.fillStyle = b.color; ctx.fillRect(tx + size*0.1, ty, size*0.15, size); ctx.fillRect(tx + size*0.75, ty, size*0.15, size); for(let i=0; i<3; i++) ctx.fillRect(tx + size*0.1, ty + size*(0.2 + i*0.3), size*0.8, size*0.12); ctx.strokeStyle = b.stroke; ctx.lineWidth = 1; ctx.strokeRect(tx + size*0.1, ty, size*0.15, size); ctx.strokeRect(tx + size*0.75, ty, size*0.15, size); }
             else if (type === 93) { ctx.fillStyle = '#5c3b1e'; ctx.fillRect(tx + size*0.4, ty + size*0.4, size*0.2, size*0.6); ctx.fillStyle = '#76b052'; ctx.fillRect(tx + size*0.3, ty + size*0.1, size*0.4, size*0.4); ctx.strokeStyle = '#3e5b2e'; ctx.lineWidth = 1; ctx.strokeRect(tx + size*0.3, ty + size*0.1, size*0.4, size*0.4); }
+            else if (type === 94) { // Chest Visual
+                ctx.fillStyle = b.color; ctx.fillRect(tx + size*0.05, ty + size*0.1, size*0.9, size*0.8);
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(tx + size*0.4, ty + size*0.4, size*0.2, size*0.2);
+            }
             else if (b.fluid && scale === 1) { const above = world[`${x},${y-1}`]; const isSubmerged = (above === type); if (isSubmerged) ctx.fillRect(tx, ty, size, size); else { ctx.fillRect(tx, ty + 6, size, size - 6); ctx.fillStyle = (type === 63 ? '#166fb8' : '#ff7043'); ctx.fillRect(tx, ty + 6 + Math.sin(time + x) * 2, size, 3); } } 
             else { ctx.fillRect(tx, ty, size, size); }
             if (type === 1) { ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, size, 8 * scale); ctx.fillRect(tx, ty + 8*scale, 4*scale, 4*scale); ctx.fillRect(tx+12*scale, ty+8*scale, 8*scale, 4*scale); ctx.fillRect(tx+28*scale, ty+8*scale, 6*scale, 4*scale); } 
