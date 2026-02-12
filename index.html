@@ -646,6 +646,7 @@
             33: { name: 'Diamond', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'gem' },
             34: { name: 'Redstone Dust', color: '#ff1744', item: true, type: 'dust' },
             35: { name: 'Ladder', color: '#8d6e63', stroke: '#5d4037', hardness: 15, tool: 'axe', ladder: true },
+            61: { name: 'Nether Brick', color: '#4a0000', stroke: '#2d0000', hardness: 60, tool: 'pickaxe', texture: 'nether_brick', requiredTier: 1 },
             67: { name: 'Furnace', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', furnace: true },
             82: { name: 'Diamond Pickaxe', color: '#00e5ff', toolType: 'pickaxe', tier: 4, item: true },
             83: { name: 'Diamond Shovel', color: '#00e5ff', toolType: 'shovel', tier: 4, item: true },
@@ -2071,7 +2072,67 @@
                 } 
         }
 
-        function generateNether() { const world = worlds.nether; const seed = Math.random() * 2000; for (let x = 0; x < WORLD_WIDTH; x++) { for(let y=0; y<5; y++) world[`${x},${y}`] = 51; for(let y=WORLD_HEIGHT-5; y<WORLD_HEIGHT; y++) world[`${x},${y}`] = 51; for(let y=WORLD_HEIGHT-10; y<WORLD_HEIGHT-5; y++) world[`${x},${y}`] = 6; for (let y = 5; y < WORLD_HEIGHT - 10; y++) { if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) { world[`${x},${y}`] = 51; const nr = Math.random(); if (nr < 0.02) world[`${x},${y}`] = 52; else if (nr < 0.035) world[`${x},${y}`] = 57; else if (nr < 0.05) world[`${x},${y}`] = 25; } } } }
+        function spawnNetherFortress(startX) {
+            const world = worlds.nether;
+            const h = 55 + Math.floor(Math.random() * 10); 
+            const length = 12 + Math.floor(Math.random() * 10);
+            
+            for (let x = startX; x < startX + length; x++) {
+                if (x >= WORLD_WIDTH) break;
+                // Walkway
+                world[`${x},${h}`] = 61;
+                
+                // Walls/Fencing at ends
+                if (x === startX || x === startX + length - 1) {
+                    world[`${x},${h-1}`] = 61;
+                    world[`${x},${h-2}`] = 61;
+                }
+
+                // Support pillar
+                if ((x - startX) % 8 === 0) {
+                    for (let py = h + 1; py < WORLD_HEIGHT - 10; py++) {
+                        const k = `${x},${py}`;
+                        if (world[k] === 51) break; 
+                        world[k] = 61;
+                    }
+                }
+                
+                // Rare Chest
+                if (x === startX + Math.floor(length/2) && Math.random() < 0.5) {
+                    const cp = `${x},${h-1}`;
+                    world[cp] = 94;
+                    tileEntities.nether[cp] = { items: new Array(27).fill(null) };
+                    tileEntities.nether[cp].items[0] = { id: 32, count: 2 + Math.floor(Math.random()*3) }; // Gold Ingot
+                    if(Math.random() < 0.3) tileEntities.nether[cp].items[1] = { id: 33, count: 1 }; // Diamond
+                }
+                
+                // Occasional glowstone detail
+                if (x % 5 === 0 && Math.random() < 0.3) world[`${x},${h-1}`] = 52;
+            }
+        }
+
+        function generateNether() { 
+            const world = worlds.nether; 
+            const seed = Math.random() * 2000; 
+            for (let x = 0; x < WORLD_WIDTH; x++) { 
+                for(let y=0; y<5; y++) world[`${x},${y}`] = 51; 
+                for(let y=WORLD_HEIGHT-5; y<WORLD_HEIGHT; y++) world[`${x},${y}`] = 51; 
+                for(let y=WORLD_HEIGHT-10; y<WORLD_HEIGHT-5; y++) world[`${x},${y}`] = 6; 
+                for (let y = 5; y < WORLD_HEIGHT - 10; y++) { 
+                    if (Math.sin(x * 0.1 + seed) * Math.cos(y * 0.1 + seed) > 0.4) { 
+                        world[`${x},${y}`] = 51; 
+                        const nr = Math.random(); 
+                        if (nr < 0.02) world[`${x},${y}`] = 52; 
+                        else if (nr < 0.035) world[`${x},${y}`] = 57; // Gravel
+                        else if (nr < 0.05) world[`${x},${y}`] = 25; // Gold Ore
+                    } 
+                } 
+            } 
+            // Spawn Fortresses
+            for (let x = 10; x < WORLD_WIDTH - 20; x += 35) {
+                if (Math.random() < 0.6) spawnNetherFortress(x);
+            }
+        }
 
         function generateEnd() { 
             const world = worlds.the_end; 
@@ -2280,6 +2341,18 @@
             else if (type === 94) { // Chest Visual
                 ctx.fillStyle = b.color; ctx.fillRect(tx + size*0.05, ty + size*0.1, size*0.9, size*0.8);
                 ctx.fillStyle = '#f1c40f'; ctx.fillRect(tx + size*0.4, ty + size*0.4, size*0.2, size*0.2);
+            }
+            else if (b.texture === 'nether_brick') {
+                ctx.fillStyle = b.color;
+                ctx.fillRect(tx, ty, size, size);
+                ctx.strokeStyle = b.stroke;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(tx, ty + size/2); ctx.lineTo(tx + size, ty + size/2);
+                ctx.moveTo(tx + size/2, ty); ctx.lineTo(tx + size/2, ty + size/2);
+                ctx.moveTo(tx + size/4, ty + size/2); ctx.lineTo(tx + size/4, ty + size);
+                ctx.moveTo(tx + 3*size/4, ty + size/2); ctx.lineTo(tx + 3*size/4, ty + size);
+                ctx.stroke();
             }
             else if (b.fluid && scale === 1) { const above = world[`${x},${y-1}`]; const isSubmerged = (above === type); if (isSubmerged) ctx.fillRect(tx, ty, size, size); else { ctx.fillRect(tx, ty + 6, size, size - 6); ctx.fillStyle = (type === 63 ? '#166fb8' : '#ff7043'); ctx.fillRect(tx, ty + 6 + Math.sin(time + x) * 2, size, 3); } } 
             else { ctx.fillRect(tx, ty, size, size); }
