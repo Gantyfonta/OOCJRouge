@@ -456,7 +456,7 @@
                 <div class="title-pig"></div>
                 <div class="title-clock"></div>
             </div>
-            <h1 class="game-title">MOINK <span>O'CLOCK</span></h1>
+            <h1 class="game-title">MOINK<span>CRAFT</span></h1>
 
             <div style="margin-bottom: 20px;">
                 <div class="mc-label" style="color:#fff;">PLAYER NAME</div>
@@ -1485,67 +1485,99 @@
             };
 
             const sizeMod = scale;
-            if (id === 95) { // Emerald
-                drawShape({ width: (18*sizeMod)+'px', height: (26*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' });
+            
+            // Standard Block Icon
+            if (!block.item && !block.toolType && !block.type?.includes('bucket') && !block.special && id !== 95 && id !== 85 && id !== 86 && id !== 71 && id !== 94 && id !== 93 && id !== 15 && id !== 35 && !block.type?.includes('food')) {
+                // Background
+                drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.1), inset 4px 4px 0 rgba(255,255,255,0.1)` });
+                // Top Layer (for Grass)
+                if (id === 1) drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.topColor, top: '0', borderRadius: '2px 2px 0 0', borderBottom: `${2*sizeMod}px solid ${block.stroke}` });
+                // Ores
+                if (block.ore) {
+                    for(let i=0; i<4; i++) {
+                        drawShape({ width: (4*sizeMod)+'px', height: (4*sizeMod)+'px', background: block.ore, left: (4 + Math.random()*20)*sizeMod+'px', top: (4 + Math.random()*20)*sizeMod+'px', boxShadow: `1px 1px 0 rgba(0,0,0,0.2)` });
+                    }
+                }
+            } else if (id === 95) { // Emerald - Gem Style
+                drawShape({ width: (18*sizeMod)+'px', height: (26*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', boxShadow: `inset -4px 0 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(255,255,255,0.4)` });
             } else if (id === 94) { // Chest
-                drawShape({ width: (30*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px' });
-                drawShape({ width: (6*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#f1c40f', left: (12*sizeMod)+'px', top: (10*sizeMod)+'px', border: `${sizeMod}px solid #b8860b` });
-            } else if (id === 93) { 
+                drawShape({ width: (30*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.2)` });
+                drawShape({ width: (30*sizeMod)+'px', height: (4*sizeMod)+'px', background: 'rgba(0,0,0,0.2)', top: (10*sizeMod)+'px' }); // Lid line
+                drawShape({ width: (6*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#f1c40f', left: (12*sizeMod)+'px', top: (10*sizeMod)+'px', border: `${sizeMod}px solid #b8860b` }); // Lock
+            } else if (id === 93) { // Sapling
                 drawShape({ width: (4*sizeMod)+'px', height: (16*sizeMod)+'px', background: '#5c3b1e', bottom: '4px' }); 
-                drawShape({ width: (12*sizeMod)+'px', height: (12*sizeMod)+'px', background: '#76b052', border: `${sizeMod}px solid #3e5b2e`, borderRadius: '0 50% 0 50%', top: '4px' });
-            } else if (id === 92) { 
+                drawShape({ width: (14*sizeMod)+'px', height: (14*sizeMod)+'px', background: '#76b052', border: `${sizeMod}px solid #3e5b2e`, borderRadius: '0 50% 0 50%', top: '4px', left: '10px' });
+            } else if (id === 92) { // Master Clock Core
                 drawShape({ width: (24*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#9c27b0', border: `${2*sizeMod}px solid #f1c40f`, borderRadius: '50%', boxShadow: '0 0 10px #f1c40f', animation: 'flicker 0.5s infinite alternate' });
-            } else if (id === 85) { 
+                drawShape({ width: (12*sizeMod)+'px', height: (12*sizeMod)+'px', background: '#fff', borderRadius: '50%', opacity: 0.3 });
+            } else if (id === 85) { // Bow
                 drawShape({ width: (2*sizeMod)+'px', height: (34*sizeMod)+'px', background: '#fff', left: (16*sizeMod)+'px', opacity: 0.8 }); 
                 drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', border: `${4*sizeMod}px solid #8d6e63`, borderRadius: '50%', borderRightColor: 'transparent', transform: 'rotate(-45deg)', left: (5*sizeMod)+'px' });
-            } else if (id === 86) { 
-                drawShape({ width: (28*sizeMod)+'px', height: (2*sizeMod)+'px', background: '#8d6e63', left: (4*sizeMod)+'px', top: (16*sizeMod)+'px' });
-                drawShape({ width: (8*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#424242', right: (4*sizeMod)+'px', top: (13*sizeMod)+'px', clipPath: 'polygon(0% 50%, 100% 0%, 100% 100%)' });
-                drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: '#fff', left: (4*sizeMod)+'px', top: (14*sizeMod)+'px', borderRadius: '1px' });
+            } else if (id === 86) { // Arrow
+                drawShape({ width: (28*sizeMod)+'px', height: (2*sizeMod)+'px', background: '#8d6e63', left: (4*sizeMod)+'px', top: (16*sizeMod)+'px', transform: 'rotate(-45deg)' });
+                drawShape({ width: (8*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#424242', right: (2*sizeMod)+'px', top: (4*sizeMod)+'px', clipPath: 'polygon(0% 50%, 100% 0%, 100% 100%)', transform: 'rotate(-45deg)' });
+                drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: '#fff', left: (4*sizeMod)+'px', bottom: (4*sizeMod)+'px', borderRadius: '1px' });
             } else if (block.toolType === 'sword') {
-                drawShape({ width: (4*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', bottom: '4px', left: '12px' });
-                drawShape({ width: (14*sizeMod)+'px', height: (4*sizeMod)+'px', background: '#333', transform: 'rotate(-45deg)', bottom: '12px', left: '10px' });
-                drawShape({ width: (8*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-45deg)', top: '2px', left: '16px', borderRadius: '2px' });
-            } else if (id === 71) { 
-                drawShape({ width: (4*sizeMod)+'px', height: (34*sizeMod)+'px', background: '#8d6e63', transform: 'rotate(25deg)' });
-                drawShape({ width: (2*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#fff', top: (5*sizeMod)+'px', left: (15*sizeMod)+'px' });
-            } else if (id === 72 || id === 74) { 
-                drawShape({ width: (24*sizeMod)+'px', height: (12*sizeMod)+'px', background: block.color, borderRadius: '50% 50% 20% 20%', border: `${2*sizeMod}px solid ${block.stroke || '#1a237e'}` });
-                drawShape({ width: (8*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, transform: 'rotate(45deg)', left: (18*sizeMod)+'px', top: (2*sizeMod)+'px', border: `${2*sizeMod}px solid ${block.stroke || '#1a237e'}` });
-            } else if (id === 73) { 
-                drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', background: 'transparent', border: `${2*sizeMod}px solid #fff`, borderRadius: '50%', clipPath: 'polygon(0% 0%, 100% 0%, 100% 50%, 0% 50%)' });
-            } else if (id === 75) { 
-                drawShape({ width: (8*sizeMod)+'px', height: (24*sizeMod)+'px', background: block.color, border: `${sizeMod}px solid ${block.stroke}`, transform: 'rotate(20deg)', borderRadius: '0 50% 0 50%' });
+                // Hilt
+                drawShape({ width: (6*sizeMod)+'px', height: (12*sizeMod)+'px', background: '#5d4037', transform: 'rotate(-45deg)', bottom: '4px', left: '10px', border: `${sizeMod}px solid #3e2723` });
+                // Guard
+                drawShape({ width: (18*sizeMod)+'px', height: (4*sizeMod)+'px', background: '#333', transform: 'rotate(-45deg)', bottom: '14px', left: '8px', borderRadius: '1px' });
+                // Blade
+                drawShape({ width: (10*sizeMod)+'px', height: (30*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-45deg)', top: '0px', left: '16px', clipPath: 'polygon(0% 0%, 100% 0%, 100% 90%, 50% 100%, 0% 90%)' });
+                // Blade Shading
+                drawShape({ width: (3*sizeMod)+'px', height: (26*sizeMod)+'px', background: 'rgba(255,255,255,0.4)', transform: 'rotate(-45deg)', top: '4px', left: '19px' });
+            } else if (id === 71) { // Fishing Rod
+                drawShape({ width: (4*sizeMod)+'px', height: (34*sizeMod)+'px', background: '#8d6e63', transform: 'rotate(25deg)', borderRadius: '2px' });
+                drawShape({ width: (2*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#fff', top: (5*sizeMod)+'px', left: (15*sizeMod)+'px', opacity: 0.6 });
+            } else if (block.type === 'food') { // Meat/Fish
+                drawShape({ width: (24*sizeMod)+'px', height: (16*sizeMod)+'px', background: block.color, borderRadius: '40% 40% 30% 30%', border: `${2*sizeMod}px solid ${block.stroke || '#1a237e'}`, boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.1)` });
+                if (id === 72) drawShape({ width: (8*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, transform: 'rotate(45deg)', left: (18*sizeMod)+'px', top: (4*sizeMod)+'px', border: `${2*sizeMod}px solid ${block.stroke}` }); // Tail
             } else if (block.type === 'ingot') {
-                drawShape({ width: (24*sizeMod)+'px', height: (12*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-25deg)', borderRadius: '2px' });
+                drawShape({ width: (26*sizeMod)+'px', height: (14*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, transform: 'rotate(-15deg)', borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.2), inset 4px 4px 0 rgba(255,255,255,0.3)` });
             } else if (block.type === 'coal') {
-                drawShape({ width: (18*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)' });
+                drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', background: block.color, clipPath: 'polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%)', boxShadow: `inset -5px -5px 0 rgba(0,0,0,0.4), inset 3px 3px 0 rgba(255,255,255,0.05)` });
             } else if (block.type === 'gem') {
-                drawShape({ width: (18*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, clipPath: 'polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)' });
-            } else if (block.texture === 'glass') {
-                drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', background: block.color, border: `2px solid #fff`, borderRadius: '2px' });
-                drawShape({ width: (10*sizeMod)+'px', height: (2*sizeMod)+'px', background: '#fff', top: '5px', left: '5px' });
-            } else if (id === 35) {
-                drawShape({ width: (4*sizeMod)+'px', height: (34*sizeMod)+'px', background: block.color, border: `${sizeMod}px solid ${block.stroke}`, left: (4*sizeMod)+'px' });
-                drawShape({ width: (4*sizeMod)+'px', height: (34*sizeMod)+'px', background: block.color, border: `${sizeMod}px solid ${block.stroke}`, right: (4*sizeMod)+'px' });
-                for(let i=0; i<3; i++) drawShape({ width: (18*sizeMod)+'px', height: (4*sizeMod)+'px', background: block.color, border: `${sizeMod}px solid ${block.stroke}`, top: (6 + i*10)*sizeMod + 'px', left: '50%', transform: 'translateX(-50%)' });
+                drawShape({ width: (22*sizeMod)+'px', height: (22*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(50% 0%, 100% 35%, 85% 100%, 15% 100%, 0% 35%)', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.2), inset 4px 4px 0 rgba(255,255,255,0.4)` });
             } else if (block.type?.includes('bucket')) {
-                drawShape({ width: (22*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)', top: (10*sizeMod)+'px' });
-                if (block.type === 'bucket_water') drawShape({ width: (16*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#0f5e9c', top: (12*sizeMod)+'px', left: (7*sizeMod)+'px' });
-                if (block.type === 'bucket_lava') drawShape({ width: (16*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#ff5722', top: (12*sizeMod)+'px', left: (7*sizeMod)+'px' });
-            } else if (block.toolType) {
-                drawShape({ width: (4*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
-                if (block.toolType === 'pickaxe') drawShape({ width: (28*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (4*sizeMod)+'px' });
-                else if (block.toolType === 'shovel') drawShape({ width: (14*sizeMod)+'px', height: (14*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (2*sizeMod)+'px', borderRadius: '50%' });
-                else if (block.toolType === 'axe') drawShape({ width: (18*sizeMod)+'px', height: (18*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (2*sizeMod)+'px', left: (4*sizeMod)+'px' });
-            } else if (id === 15) {
-                drawShape({ width: (4*sizeMod)+'px', height: (24*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)' });
-            } else if (block.item) {
-                drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '50%' });
+                // Bucket Body
+                drawShape({ width: (24*sizeMod)+'px', height: (20*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)', top: (8*sizeMod)+'px' });
+                // Bucket Handle
+                drawShape({ width: (22*sizeMod)+'px', height: (10*sizeMod)+'px', border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '50% 50% 0 0', borderBottom: 'none', top: (2*sizeMod)+'px' });
+                // Liquid Content
+                if (block.type === 'bucket_water') drawShape({ width: (18*sizeMod)+'px', height: (6*sizeMod)+'px', background: '#0f5e9c', top: (10*sizeMod)+'px', left: (8*sizeMod)+'px', borderRadius: '2px' });
+                if (block.type === 'bucket_lava') drawShape({ width: (18*sizeMod)+'px', height: (6*sizeMod)+'px', background: '#ff5722', top: (10*sizeMod)+'px', left: (8*sizeMod)+'px', borderRadius: '2px' });
+            } else if (block.toolType) { // Tools (Pickaxe, Axe, Shovel)
+                // Handle
+                drawShape({ width: (4*sizeMod)+'px', height: (32*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', borderRadius: '2px', border: `${sizeMod}px solid #3e2723` });
+                if (block.toolType === 'pickaxe') {
+                    // Head
+                    drawShape({ width: (34*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (2*sizeMod)+'px', clipPath: 'polygon(0% 100%, 50% 0%, 100% 100%, 100% 80%, 50% -20%, 0% 80%)', borderRadius: '2px' });
+                    // Shine
+                    drawShape({ width: (8*sizeMod)+'px', height: (3*sizeMod)+'px', background: 'rgba(255,255,255,0.4)', top: (4*sizeMod)+'px', left: (4*sizeMod)+'px' });
+                }
+                else if (block.toolType === 'shovel') {
+                    // Head
+                    drawShape({ width: (16*sizeMod)+'px', height: (16*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (0*sizeMod)+'px', left: (4*sizeMod)+'px', borderRadius: '20% 20% 50% 50%', boxShadow: `inset -3px -3px 0 rgba(0,0,0,0.2)` });
+                    // Connector
+                    drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: block.stroke, top: (12*sizeMod)+'px', left: (9*sizeMod)+'px' });
+                }
+                else if (block.toolType === 'axe') {
+                    // Head
+                    drawShape({ width: (20*sizeMod)+'px', height: (22*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, top: (0*sizeMod)+'px', left: (8*sizeMod)+'px', borderRadius: '2px 8px 8px 2px', clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 60%)' });
+                    // Shine
+                    drawShape({ width: (10*sizeMod)+'px', height: (3*sizeMod)+'px', background: 'rgba(255,255,255,0.4)', top: (3*sizeMod)+'px', left: (12*sizeMod)+'px' });
+                }
+            } else if (id === 15) { // Stick
+                drawShape({ width: (4*sizeMod)+'px', height: (28*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', borderRadius: '1px' });
+            } else if (id === 11) { // Clock Item
+                drawShape({ width: (26*sizeMod)+'px', height: (26*sizeMod)+'px', background: '#fdd835', border: `${2*sizeMod}px solid #f9a825`, borderRadius: '50%', boxShadow: `inset -3px -3px 0 rgba(0,0,0,0.2)` });
+                drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#fff', borderRadius: '50%' });
+                drawShape({ width: (2*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#333', left: (12*sizeMod)+'px', top: (5*sizeMod)+'px', transformOrigin: 'bottom center', transform: `rotate(${(gameTime / DAY_LENGTH) * 360}deg)` });
             } else {
-                drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px' });
-                if (block.ore) { for(let i=0; i<3; i++) drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: block.ore, left: (Math.random()*20*sizeMod)+'px', top: (Math.random()*20*sizeMod)+'px' }); }
+                // Fallback catch-all generic item style
+                drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '50%', boxShadow: `inset -2px -2px 0 rgba(0,0,0,0.2)` });
             }
+            
             if (count > 1) { const cnt = document.createElement('div'); cnt.className = 'item-count'; cnt.innerText = count; container.appendChild(cnt); }
             return container;
         }
@@ -2144,7 +2176,7 @@
                     if (dx*dx + dy*dy*4 < 1000) { world[`${x},${y}`] = 91; }
                 }
             }
-            world[`${centerX},${centerY+4}`] = 90; 
+            world[`${centerX},centerY+4`] = 90; 
         }
 
         function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
