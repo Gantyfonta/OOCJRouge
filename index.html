@@ -668,11 +668,17 @@
         let worldRNG = new SeededRandom();
         let currentSeedDisplay = "";
 
+        /**
+         * Determines the maximum stack size for a given item ID.
+         * Ores and materials should stack to 64, while tools/uniques stay at 1.
+         */
         function getMaxStack(id) {
             const b = BLOCK_TYPES[id];
             if (!b) return 64;
-            if (b.toolType || b.special || b.weapon || b.action || 
-                b.type === 'bucket' || b.type === 'bucket_water' || b.type === 'bucket_lava' || b.type === 'rod') {
+            // Only strictly non-stackable items return 1
+            if (b.toolType || b.weapon || 
+                b.type === 'bucket' || b.type === 'bucket_water' || b.type === 'bucket_lava' || 
+                b.type === 'rod' || b.special || b.blueprint) {
                 return 1;
             }
             return 64;
@@ -1591,18 +1597,12 @@
         }
 
         function handleSlotClick(type, idx, button) {
-            const getMaxStackLocal = (id) => {
-                const b = BLOCK_TYPES[id];
-                if (!b) return 64;
-                return (b.item || b.toolType || b.type?.includes('bucket') || b.special) ? 1 : 64;
-            };
-
             if (type === 'creative') {
                 if (heldItem) {
                     heldItem = null;
                 } else {
                     const itemId = idx;
-                    const max = getMaxStackLocal(itemId);
+                    const max = getMaxStack(itemId);
                     heldItem = { id: itemId, count: (button === 0 ? max : 1) };
                 }
                 updateHeldItemCursor();
@@ -1630,7 +1630,7 @@
                         f[field] = { ...heldItem }; heldItem = null; 
                     }
                     else if (heldItem && current && heldItem.id === current.id) { 
-                        const max = getMaxStackLocal(current.id);
+                        const max = getMaxStack(current.id);
                         const canAdd = Math.min(heldItem.count, max - current.count);
                         current.count += canAdd; heldItem.count -= canAdd;
                         if (heldItem.count <= 0) heldItem = null;
@@ -1641,7 +1641,7 @@
             if (!targetArray) return;
 
             const current = targetArray[idx];
-            const maxSlot = current ? getMaxStackLocal(current.id) : 64;
+            const maxSlot = current ? getMaxStack(current.id) : 64;
 
             if (button === 0) { // Left Click
                 if (!heldItem && current) { 
@@ -1869,7 +1869,7 @@
 
         function addItemToInventory(id, count) {
             const block = BLOCK_TYPES[id];
-            const max = (block.item || block.toolType || block.type?.includes('bucket') || block.special) ? 1 : 64;
+            const max = getMaxStack(id);
             const lists = [hotbarInventory, mainInventory];
             for (const list of lists) { for (let i = 0; i < list.length; i++) { if (list[i] && list[i].id === id && list[i].count < max) { const canAdd = Math.min(count, max - list[i].count); list[i].count += canAdd; count -= canAdd; if (count <= 0) return true; } } }
             for (const list of lists) { for (let i = 0; i < list.length; i++) { if (!list[i]) { const canAdd = Math.min(count, max); list[i] = { id, count: canAdd }; count -= canAdd; if (count <= 0) return true; } } }
