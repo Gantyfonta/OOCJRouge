@@ -718,7 +718,7 @@
             31: { name: 'Iron Ingot', color: '#f5f5f5', stroke: '#bdbdbd', item: true, type: 'ingot' },
             32: { name: 'Gold Ingot', color: '#fff176', stroke: '#fbc02d', item: true, type: 'ingot' },
             33: { name: 'Diamond', color: '#00e5ff', stroke: '#00b8d4', item: true, type: 'gem' },
-            34: { name: 'Redstone Dust', color: '#ff1744', stroke: '#4a0000', hardness: 1, nonSolid: true },
+            34: { name: 'Redstone Dust', color: '#ff1744', item: true },
             35: { name: 'Ladder', color: '#8d6e63', stroke: '#5d4037', hardness: 15, tool: 'axe', ladder: true },
             51: { name: 'Netherrack', color: '#b71c1c', stroke: '#7f0000', hardness: 15, tool: 'pickaxe', texture: 'netherrack', requiredTier: 1 },
             52: { name: 'Glowstone', color: '#fff59d', stroke: '#fbc02d', hardness: 10, animated: true },
@@ -759,7 +759,8 @@
             102: { name: 'Redstone Block', color: '#ff1744', stroke: '#b71c1c', hardness: 50, tool: 'pickaxe', texture: 'stone' },
             103: { name: 'Piston Head', color: '#d2b48c', stroke: '#8b4513', hardness: 50, tool: 'axe' },
             104: { name: 'Iron Wrench', color: '#f5f5f5', stroke: '#bdbdbd', item: true, toolType: 'wrench' },
-            105: { name: 'Lever', color: '#616161', stroke: '#424242', hardness: 5, tool: 'pickaxe', nonSolid: true, interactive: true }
+            105: { name: 'Lever', color: '#616161', stroke: '#424242', hardness: 5, tool: 'pickaxe', nonSolid: true, interactive: true },
+            106: { name: 'Sticky Piston', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', woodTop: '#d2b48c', sticky: true }
         };
 
         const MOB_TYPES = {
@@ -825,7 +826,8 @@
             { pattern: [[34, 34, 34], [34, 34, 34], [34, 34, 34]], result: 102, amount: 1 }, // Redstone Block
             { pattern: [[102]], result: 34, amount: 9 }, // Redstone Block back to Dust
             { pattern: [[31, null, 31], [31, 31, 31], [null, 31, null]], result: 104, amount: 1 }, // Wrench Recipe (6 iron)
-            { pattern: [[15], [7]], result: 105, amount: 1 } // Lever: Stick over Cobble
+            { pattern: [[15], [7]], result: 105, amount: 1 }, // Lever: Stick over Cobble
+            { pattern: [[101], [93]], result: 106, amount: 1 } // Sticky Piston: Piston + Sapling
         ];
 
         const SMELTING_RECIPES = {
@@ -1850,7 +1852,11 @@
                 drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.1), inset 4px 4px 0 rgba(255,255,255,0.1)` });
                 if (id === 1) drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.topColor, top: '0', borderRadius: '2px 2px 0 0', borderBottom: `${2*sizeMod}px solid ${block.stroke}` });
                 if (block.ore) { for(let i=0; i<4; i++) { drawShape({ width: (4*sizeMod)+'px', height: (4*sizeMod)+'px', background: block.ore, left: (4 + Math.random()*20)*sizeMod+'px', top: (4 + Math.random()*20)*sizeMod+'px', boxShadow: `1px 1px 0 rgba(0,0,0,0.2)` }); } }
-                if (id === 101) { drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.woodTop, top: '0', borderBottom: `${2*sizeMod}px solid #8b4513`, borderRadius: '2px 2px 0 0' }); drawShape({ width: (4*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#333', top: (10*sizeMod)+'px', left: (13*sizeMod)+'px' }); }
+                if (id === 101 || id === 106) { 
+                    drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.woodTop, top: '0', borderBottom: `${2*sizeMod}px solid #8b4513`, borderRadius: '2px 2px 0 0' }); 
+                    if (id === 106) drawShape({ width: (6*sizeMod)+'px', height: (6*sizeMod)+'px', background: '#76b052', left: (12*sizeMod)+'px', top: (2*sizeMod)+'px', borderRadius: '50%' });
+                    drawShape({ width: (4*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#333', top: (10*sizeMod)+'px', left: (13*sizeMod)+'px' }); 
+                }
                 if (id === 103) { drawShape({ width: (30*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, top: '4px', border: `${sizeMod}px solid ${block.stroke}`, borderRadius: '2px' }); drawShape({ width: (6*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#5d4037', top: (10*sizeMod)+'px', left: (12*sizeMod)+'px' }); }
             } else if (id === 95) { drawShape({ width: (18*sizeMod)+'px', height: (26*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', boxShadow: `inset -4px 0 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(255,255,255,0.4)` }); }
             else if (id === 94) { drawShape({ width: (30*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.2)` }); drawShape({ width: (30*sizeMod)+'px', height: (4*sizeMod)+'px', background: 'rgba(0,0,0,0.2)', top: (10*sizeMod)+'px' }); drawShape({ width: (6*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#f1c40f', left: (12*sizeMod)+'px', top: (10*sizeMod)+'px', border: `${sizeMod}px solid #b8860b` }); }
@@ -1871,7 +1877,6 @@
             else if (id === 15) { drawShape({ width: (4*sizeMod)+'px', height: (28*sizeMod)+'px', background: '#5c3b1e', transform: 'rotate(-45deg)', borderRadius: '1px' }); }
             else if (id === 11) { drawShape({ width: (26*sizeMod)+'px', height: (26*sizeMod)+'px', background: '#fdd835', border: `${2*sizeMod}px solid #f9a825`, borderRadius: '50%', boxShadow: `inset -3px -3px 0 rgba(0,0,0,0.2)` }); drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#fff', borderRadius: '50%' }); drawShape({ width: (2*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#333', left: (12*sizeMod)+'px', top: (5*sizeMod)+'px', transformOrigin: 'bottom center', transform: `rotate(${(gameTime / DAY_LENGTH) * 360}deg)` }); }
             else if (id === 100) { drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', background: '#9c27b0', border: `${2*sizeMod}px solid #f1c40f`, borderRadius: '2px' }); drawShape({ width: (14*sizeMod)+'px', height: (14*sizeMod)+'px', background: '#333', top: (8*sizeMod)+'px', left: (8*sizeMod)+'px', border: `${sizeMod}px solid #fff` }); }
-            else if (id === 34) { drawShape({ width: (16*sizeMod)+'px', height: (16*sizeMod)+'px', background: '#ff1744', clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }); }
             else { drawShape({ width: (20*sizeMod)+'px', height: (20*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '50%', boxShadow: `inset -2px -2px 0 rgba(0,0,0,0.2)` }); }
             if (count > 1) { const cnt = document.createElement('div'); cnt.className = 'item-count'; cnt.innerText = count; container.appendChild(cnt); }
             return container;
@@ -2215,56 +2220,11 @@
             const det = tileEntities[currentDimension]; for (let pos in det) { const ent = det[pos]; if (ent.type === 'sapling') { if (world[pos] !== 93) { delete det[pos]; continue; } ent.timer--; if (ent.timer <= 0) { const [sx, sy] = pos.split(',').map(Number); delete world[pos]; spawnTree(sx, sy, currentDimension); delete det[pos]; broadcastWorldChange(); } } else if (BLOCK_TYPES[world[pos]]?.furnace) { const f = ent; const rec = SMELTING_RECIPES[f.input?.id]; const can = rec && (!f.output || (f.output.id === rec.result && f.output.count < 64)); if (f.burnTime > 0) { f.burnTime--; if (can) { f.cookProgress++; if (f.cookProgress >= rec.time) { f.cookProgress = 0; f.input.count--; if (f.input.count <= 0) f.input = null; if (!f.output) f.output = { id: rec.result, count: 1 }; else f.output.count++; if (activeFurnacePos === pos) renderInventory(); } } else f.cookProgress = 0; } if (f.burnTime <= 0 && can && f.fuel) { const fv = FUEL_VALUES[f.fuel.id]; if (fv) { f.burnTime = fv; f.maxBurnTime = fv; f.fuel.count--; if (f.fuel.count <= 0) f.fuel = null; if (activeFurnacePos === pos) renderInventory(); } } if (f.burnTime <= 0 && !can) f.cookProgress = 0; if (activeFurnacePos === pos && inventoryOpen) renderInventory(); } }
             if (inventoryOpen) return;
             
-            // --- Piston & Redstone Logic ---
+            // --- Piston Logic ---
             pistonTimer++;
             if (pistonTimer >= 10) {
                 pistonTimer = 0;
-
-                // --- Redstone Propagation ---
-                const dustPositions = Object.keys(world).filter(k => world[k] === 34);
-                dustPositions.forEach(pk => {
-                    if (!tileEntities[currentDimension][pk]) tileEntities[currentDimension][pk] = { powered: false };
-                    tileEntities[currentDimension][pk].powered = false;
-                });
-
-                let powerQueue = [];
-                dustPositions.forEach(pk => {
-                    const [wx, wy] = pk.split(',').map(Number);
-                    const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
-                    for (const [nx, ny] of neighbors) {
-                        const nk = `${nx},${ny}`;
-                        const nId = world[nk];
-                        if (nId === 102) { 
-                            tileEntities[currentDimension][pk].powered = true;
-                            powerQueue.push(pk);
-                            break;
-                        }
-                        if (nId === 105) {
-                            const ent = tileEntities[currentDimension][nk];
-                            if (ent && ent.active) {
-                                tileEntities[currentDimension][pk].powered = true;
-                                powerQueue.push(pk);
-                                break;
-                            }
-                        }
-                    }
-                });
-
-                let head = 0;
-                while(head < powerQueue.length) {
-                    const pk = powerQueue[head++];
-                    const [wx, wy] = pk.split(',').map(Number);
-                    const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
-                    for (const [nx, ny] of neighbors) {
-                        const nk = `${nx},${ny}`;
-                        if (world[nk] === 34 && tileEntities[currentDimension][nk] && !tileEntities[currentDimension][nk].powered) {
-                            tileEntities[currentDimension][nk].powered = true;
-                            powerQueue.push(nk);
-                        }
-                    }
-                }
-
-                const pistons = Object.keys(world).filter(k => world[k] === 101);
+                const pistons = Object.keys(world).filter(k => world[k] === 101 || world[k] === 106);
                 const dirs = [{dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0}];
 
                 pistons.forEach(pk => {
@@ -2272,16 +2232,11 @@
                     let isPowered = false;
                     const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
                     for (const [nx, ny] of neighbors) { 
-                        const nk = `${nx},${ny}`;
-                        const nId = world[nk];
+                        const nId = world[`${nx},${ny}`];
                         if (nId === 102) { isPowered = true; break; } 
                         if (nId === 105) {
-                            const ent = tileEntities[currentDimension][nk];
+                            const ent = tileEntities[currentDimension][`${nx},${ny}`];
                             if (ent && ent.active) { isPowered = true; break; }
-                        }
-                        if (nId === 34) {
-                            const ent = tileEntities[currentDimension][nk];
-                            if (ent && ent.powered) { isPowered = true; break; }
                         }
                     }
                     
@@ -2292,6 +2247,7 @@
                     if (isPowered) {
                         // Extend Logic
                         if (world[headPos] !== 103) {
+                            // Try to push blocks in the direction the piston is facing
                             let blocksToPush = [];
                             let curX = wx + dir.dx;
                             let curY = wy + dir.dy;
@@ -2299,14 +2255,15 @@
                             while(true) {
                                 if (curX < 0 || curX >= WORLD_WIDTH || curY < 0 || curY >= WORLD_HEIGHT) { canPush = false; break; }
                                 const tid = world[`${curX},${curY}`];
-                                if (!tid || BLOCK_TYPES[tid]?.fluid) break; 
-                                if (tid === 29 || tid === 60 || tid === 90 || tid === 103) { canPush = false; break; } 
+                                if (!tid || BLOCK_TYPES[tid]?.fluid) break; // Found space
+                                if (tid === 29 || tid === 60 || tid === 90 || tid === 103) { canPush = false; break; } // Bedrock/Portals/Heads unmovable
                                 blocksToPush.push({ x: curX, y: curY, id: tid });
-                                if (blocksToPush.length > 12) { canPush = false; break; } 
+                                if (blocksToPush.length > 12) { canPush = false; break; } // Push limit
                                 curX += dir.dx;
                                 curY += dir.dy;
                             }
                             if (canPush) {
+                                // Move blocks
                                 for(let i = blocksToPush.length - 1; i >= 0; i--) {
                                     const b = blocksToPush[i];
                                     const oldK = `${b.x},${b.y}`;
@@ -2322,25 +2279,50 @@
                                     }
                                 }
                                 world[headPos] = 103;
-                                blockRotations[currentDimension][headPos] = rot; 
+                                blockRotations[currentDimension][headPos] = rot; // Align head with piston
                                 broadcastWorldChange();
                             }
                         }
                     } else {
+                        // Retract logic
                         if (world[headPos] === 103) {
-                            delete world[headPos];
-                            delete blockRotations[currentDimension][headPos];
+                            const isSticky = world[pk] === 106;
+                            if (isSticky) {
+                                const pullTargetX = wx + dir.dx * 2;
+                                const pullTargetY = wy + dir.dy * 2;
+                                const pullKey = `${pullTargetX},${pullTargetY}`;
+                                const pulledId = world[pullKey];
+                                if (pulledId && pulledId !== 29 && pulledId !== 60 && pulledId !== 90 && pulledId !== 103) {
+                                    world[headPos] = pulledId;
+                                    delete world[pullKey];
+                                    if (tileEntities[currentDimension][pullKey]) {
+                                        tileEntities[currentDimension][headPos] = tileEntities[currentDimension][pullKey];
+                                        delete tileEntities[currentDimension][pullKey];
+                                    }
+                                    if (blockRotations[currentDimension][pullKey] !== undefined) {
+                                        blockRotations[currentDimension][headPos] = blockRotations[currentDimension][pullKey];
+                                        delete blockRotations[currentDimension][pullKey];
+                                    }
+                                } else {
+                                    delete world[headPos];
+                                    delete blockRotations[currentDimension][headPos];
+                                }
+                            } else {
+                                delete world[headPos];
+                                delete blockRotations[currentDimension][headPos];
+                            }
                             broadcastWorldChange();
                         }
                     }
                 });
+                // Cleanup orphaned Piston Heads
                 const heads = Object.keys(world).filter(k => world[k] === 103);
                 heads.forEach(hk => {
                     const [hx, hy] = hk.split(',').map(Number);
                     const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][hk]) || 0;
                     const dir = dirs[rot];
                     const parentK = `${hx - dir.dx},${hy - dir.dy}`;
-                    if (world[parentK] !== 101) {
+                    if (world[parentK] !== 101 && world[parentK] !== 106) {
                         delete world[hk];
                         delete blockRotations[currentDimension][hk];
                         broadcastWorldChange();
@@ -2377,7 +2359,8 @@
         function drawBlock(x, y, type, scale = 1, offsetX = 0, offsetY = 0, rotIdx = 0) {
             const b = BLOCK_TYPES[type]; if(!b) return; const size = TILE_SIZE * scale; const tx = x * TILE_SIZE + offsetX; const ty = y * TILE_SIZE + offsetY; const time = Date.now() / 300; const world = worlds[currentDimension];
             ctx.save(); 
-            if (rotIdx !== 0 && type !== 105 && type !== 34) { 
+            // Handle block rotation
+            if (rotIdx !== 0 && type !== 105) { // Lever handles its own rotation visually
                 ctx.translate(tx + size/2, ty + size/2);
                 ctx.rotate(rotIdx * Math.PI / 2);
                 ctx.translate(-(tx + size/2), -(ty + size/2));
@@ -2388,7 +2371,7 @@
             else if (type === 35) { ctx.fillStyle = b.color; ctx.fillRect(tx + size*0.1, ty, size*0.15, size); ctx.fillRect(tx + size*0.75, ty, size*0.15, size); for(let i=0; i<3; i++) ctx.fillRect(tx + size*0.1, ty + size*(0.2 + i*0.3), size*0.8, size*0.12); ctx.strokeStyle = b.stroke; ctx.lineWidth = 1; ctx.strokeRect(tx + size*0.1, ty, size*0.15, size); ctx.strokeRect(tx + size*0.75, ty, size*0.15, size); }
             else if (type === 93) { ctx.fillStyle = '#5c3b1e'; ctx.fillRect(tx + size*0.4, ty + size*0.4, size*0.2, size*0.6); ctx.fillStyle = '#76b052'; ctx.fillRect(tx + size*0.3, ty + size*0.1, size*0.4, size*0.4); ctx.strokeStyle = '#3e5b2e'; ctx.lineWidth = 1; ctx.strokeRect(tx + size*0.3, ty + size*0.1, size*0.4, size*0.4); }
             else if (type === 94) { ctx.fillStyle = b.color; ctx.fillRect(tx + size*0.05, ty + size*0.1, size*0.9, size*0.8); ctx.fillStyle = '#f1c40f'; ctx.fillRect(tx + size*0.4, ty + size*0.4, size*0.2, size*0.2); }
-            else if (type === 105) { 
+            else if (type === 105) { // Lever Rendering
                 ctx.fillStyle = '#616161';
                 ctx.fillRect(tx + size*0.2, ty + size*0.7, size*0.6, size*0.2);
                 const ent = tileEntities[currentDimension][`${x},${y}`];
@@ -2399,26 +2382,31 @@
                 ctx.fillRect(-size*0.05, -size*0.5, size*0.1, size*0.5);
                 ctx.restore();
             }
-            else if (type === 34) {
-                const ent = tileEntities[currentDimension][`${x},${y}`];
-                const isPowered = ent && ent.powered;
-                ctx.fillStyle = isPowered ? '#ff1744' : '#4a0000';
-                ctx.fillRect(tx + size * 0.4, ty, size * 0.2, size);
-                ctx.fillRect(tx, ty + size * 0.4, size, size * 0.2);
-            }
             else if (b.texture === 'nether_brick') { ctx.fillStyle = b.color; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = b.stroke; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(tx, ty + size/2); ctx.lineTo(tx + size, ty + size/2); ctx.moveTo(tx + size/2, ty); ctx.lineTo(tx + size/2, ty + size/2); ctx.moveTo(tx + size/4, ty + size/2); ctx.lineTo(tx + size/4, ty + size); ctx.moveTo(tx + 3*size/4, ty + size/2); ctx.lineTo(tx + 3*size/4, ty + size); ctx.stroke(); }
             else if (b.fluid && scale === 1) { const above = world[`${x},${y-1}`]; if (above === type) ctx.fillRect(tx, ty, size, size); else { ctx.fillRect(tx, ty + 6, size, size - 6); ctx.fillStyle = (type === 63 ? '#166fb8' : '#ff7043'); ctx.fillRect(tx, ty + 6 + Math.sin(time + x) * 2, size, 3); } } 
-            else if (type === 101) { ctx.fillRect(tx, ty, size, size); ctx.fillStyle = b.woodTop; ctx.fillRect(tx, ty, size, size * 0.35); ctx.fillStyle = '#333'; ctx.fillRect(tx + size*0.4, ty + size*0.35, size*0.2, size*0.65); }
+            else if (type === 101 || type === 106) { 
+                ctx.fillRect(tx, ty, size, size); 
+                ctx.fillStyle = b.woodTop; 
+                ctx.fillRect(tx, ty, size, size * 0.35); 
+                if (type === 106) {
+                    ctx.fillStyle = '#76b052';
+                    ctx.beginPath();
+                    ctx.arc(tx + size/2, ty + size*0.15, size*0.1, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = '#333'; 
+                ctx.fillRect(tx + size*0.4, ty + size*0.35, size*0.2, size*0.65); 
+            }
             else if (type === 103) { ctx.fillStyle = b.color; ctx.fillRect(tx, ty + size*0.1, size, size*0.2); ctx.fillStyle = '#5d4037'; ctx.fillRect(tx + size*0.4, ty + size*0.3, size*0.2, size*0.7); ctx.strokeStyle = b.stroke; ctx.lineWidth = 1; ctx.strokeRect(tx, ty + size*0.1, size, size*0.2); }
             else { ctx.fillRect(tx, ty, size, size); }
             if (type === 1) { ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, size, 8 * scale); ctx.fillRect(tx, ty + 8*scale, 4*scale, 4*scale); ctx.fillRect(tx+12*scale, ty+8*scale, 8*scale, 4*scale); ctx.fillRect(tx+28*scale, ty+8*scale, 6*scale, 4*scale); } 
             else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian' || b.texture === 'end_stone') { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(tx+4*scale, ty+4*scale, 8*scale, 8*scale); ctx.fillRect(tx+20*scale, ty+18*scale, 12*scale, 12*scale); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25*scale, ty+5*scale, 6*scale, 6*scale); ctx.fillRect(tx+8*scale, ty+25*scale, 10*scale, 10*scale); }
             if (b.ore) { ctx.fillStyle = b.ore; ctx.fillRect(tx+6*scale, ty+8*scale, 6*scale, 6*scale); ctx.fillRect(tx+24*scale, ty+14*scale, 8*scale, 8*scale); ctx.fillRect(tx+10*scale, ty+26*scale, 6*scale, 6*scale); }
-            if (type === 67) { ctx.fillStyle = '#333'; ctx.fillRect(tx + size*0.1, ty + size*0.1, size*0.8, size*0.3); const f = tileEntities[currentDimension][`${x},${y}`]; if (f && f.burnTime > 0) { ctx.fillStyle = '#ff5722'; ctx.fillRect(tx + size*0.15, ty + size*0.2, size*0.7, size*0.2); } }
+            if (type === 67) { ctx.fillStyle = '#333'; ctx.fillRect(tx + size*0.1, ty + size*0.1, size*0.8, size*0.3); const f = tileEntities[currentDimension][`${x},${y}`]; if (f && f.burnTime > 0) { ctx.fillStyle = '#ff5722'; ctx.fillRect(tx + size*0.15, ty + size*0.15, size*0.7, size*0.2); } }
             if (type === 11) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + size/2, ty + size/2, size/2.5, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * scale; ctx.beginPath(); ctx.moveTo(tx + size/2, ty + size/2); const angle = (gameTime / DAY_LENGTH) * Math.PI * 2; ctx.lineTo(tx + size/2 + Math.cos(angle)*10*scale, ty + size/2 + Math.sin(angle)*10*scale); ctx.stroke(); }
             if (type === 100) { ctx.fillStyle = '#9c27b0'; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+size*0.1, ty+size*0.1, size*0.8, size*0.8); ctx.fillStyle = '#fff'; ctx.fillRect(tx+size*0.35, ty+size*0.35, size*0.3, size*0.3); }
             if (type === 90) { ctx.fillStyle = '#fff'; for(let i=0; i<3; i++) ctx.fillRect(tx + (Math.sin(time + i)*size/2) + size/2, ty + (Math.cos(time + i)*size/2) + size/2, 2, 2); }
-            if (!b.fluid && b.texture !== 'glass' && type !== 35 && type !== 93 && type !== 34) { ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size); }
+            if (!b.fluid && b.texture !== 'glass' && type !== 35 && type !== 93) { ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size); }
             if (miningTarget?.wx === x && miningTarget?.wy === y && scale === 1) { const stage = Math.floor((miningProgress / b.hardness) * 5); if (stage > 0) { ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3; for (let i = 0; i < stage; i++) { ctx.beginPath(); ctx.moveTo(tx+(i*8), ty); ctx.lineTo(tx+TILE_SIZE, ty+TILE_SIZE-(i*8)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(tx, ty+(i*8)); ctx.lineTo(tx+TILE_SIZE-(i*8), ty+TILE_SIZE); ctx.stroke(); } } } ctx.restore();
         }
 
@@ -2438,6 +2426,7 @@
             // Draw Blueprint Guide in Debug Mode
             if (debugMode) {
                 let bpToHighlight = activeBlueprintPos;
+                // If not currently in a blueprint menu, check if we're hovering over one
                 if (!bpToHighlight && !inventoryOpen) {
                     const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE);
                     const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE);
@@ -2446,7 +2435,7 @@
                 }
                 if (bpToHighlight) {
                     const [bx, by] = bpToHighlight.split(',').map(Number);
-                    ctx.fillStyle = 'rgba(156, 39, 176, 0.2)'; 
+                    ctx.fillStyle = 'rgba(156, 39, 176, 0.2)'; // Chrono-purple
                     ctx.strokeStyle = '#9c27b0';
                     ctx.lineWidth = 4;
                     ctx.setLineDash([10, 5]);
@@ -2454,7 +2443,7 @@
                     ctx.fillRect((bx - 2) * TILE_SIZE, (by - 2) * TILE_SIZE, TILE_SIZE * 5, TILE_SIZE * 5);
                     ctx.setLineDash([]);
                     ctx.lineWidth = 2;
-                    ctx.strokeRect(bx * TILE_SIZE, by * TILE_SIZE, TILE_SIZE, TILE_SIZE); 
+                    ctx.strokeRect(bx * TILE_SIZE, by * TILE_SIZE, TILE_SIZE, TILE_SIZE); // Highlight center
                 }
             }
 
