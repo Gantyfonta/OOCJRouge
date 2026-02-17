@@ -2188,46 +2188,56 @@
             if (pistonTimer >= 10) {
                 pistonTimer = 0;
                 const pistons = Object.keys(world).filter(k => world[k] === 101);
+                const dirs = [{dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0}];
+
                 pistons.forEach(pk => {
                     const [wx, wy] = pk.split(',').map(Number);
                     let isPowered = false;
                     const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
                     for (const [nx, ny] of neighbors) { if (world[`${nx},${ny}`] === 102) { isPowered = true; break; } }
                     
-                    const headPos = `${wx},${wy-1}`;
+                    const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][pk]) || 0;
+                    const dir = dirs[rot];
+                    const headPos = `${wx + dir.dx},${wy + dir.dy}`;
+
                     if (isPowered) {
                         // Extend Logic
                         if (world[headPos] !== 103) {
-                            // Try to push blocks
+                            // Try to push blocks in the direction the piston is facing
                             let blocksToPush = [];
-                            let currentY = wy - 1;
+                            let curX = wx + dir.dx;
+                            let curY = wy + dir.dy;
                             let canPush = true;
                             while(true) {
-                                if (currentY < 0) { canPush = false; break; }
-                                const tid = world[`${wx},${currentY}`];
+                                if (curX < 0 || curX >= WORLD_WIDTH || curY < 0 || curY >= WORLD_HEIGHT) { canPush = false; break; }
+                                const tid = world[`${curX},${curY}`];
                                 if (!tid || BLOCK_TYPES[tid]?.fluid) break; // Found space
                                 if (tid === 29 || tid === 60 || tid === 90 || tid === 103) { canPush = false; break; } // Bedrock/Portals/Heads unmovable
-                                blocksToPush.push({ y: currentY, id: tid });
+                                blocksToPush.push({ x: curX, y: curY, id: tid });
                                 if (blocksToPush.length > 12) { canPush = false; break; } // Push limit
-                                currentY--;
+                                curX += dir.dx;
+                                curY += dir.dy;
                             }
                             if (canPush) {
                                 // Move blocks
                                 for(let i = blocksToPush.length - 1; i >= 0; i--) {
                                     const b = blocksToPush[i];
-                                    world[`${wx},${b.y-1}`] = b.id;
+                                    const oldK = `${b.x},${b.y}`;
+                                    const nextK = `${b.x + dir.dx},${b.y + dir.dy}`;
+                                    world[nextK] = b.id;
                                     // Move Tile Entities if any
-                                    if (tileEntities[currentDimension][`${wx},${b.y}`]) {
-                                        tileEntities[currentDimension][`${wx},${b.y-1}`] = tileEntities[currentDimension][`${wx},${b.y}`];
-                                        delete tileEntities[currentDimension][`${wx},${b.y}`];
+                                    if (tileEntities[currentDimension][oldK]) {
+                                        tileEntities[currentDimension][nextK] = tileEntities[currentDimension][oldK];
+                                        delete tileEntities[currentDimension][oldK];
                                     }
                                     // Move block rotations
-                                    if (blockRotations[currentDimension][`${wx},${b.y}`] !== undefined) {
-                                        blockRotations[currentDimension][`${wx},${b.y-1}`] = blockRotations[currentDimension][`${wx},${b.y}`];
-                                        delete blockRotations[currentDimension][`${wx},${b.y}`];
+                                    if (blockRotations[currentDimension][oldK] !== undefined) {
+                                        blockRotations[currentDimension][nextK] = blockRotations[currentDimension][oldK];
+                                        delete blockRotations[currentDimension][oldK];
                                     }
                                 }
                                 world[headPos] = 103;
+                                blockRotations[currentDimension][headPos] = rot; // Align head with piston
                                 broadcastWorldChange();
                             }
                         }
@@ -2235,6 +2245,7 @@
                         // Retract if head exists
                         if (world[headPos] === 103) {
                             delete world[headPos];
+                            delete blockRotations[currentDimension][headPos];
                             broadcastWorldChange();
                         }
                     }
@@ -2243,8 +2254,12 @@
                 const heads = Object.keys(world).filter(k => world[k] === 103);
                 heads.forEach(hk => {
                     const [hx, hy] = hk.split(',').map(Number);
-                    if (world[`${hx},${hy+1}`] !== 101) {
+                    const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][hk]) || 0;
+                    const dir = dirs[rot];
+                    const parentK = `${hx - dir.dx},${hy - dir.dy}`;
+                    if (world[parentK] !== 101) {
                         delete world[hk];
+                        delete blockRotations[currentDimension][hk];
                         broadcastWorldChange();
                     }
                 });
@@ -2254,7 +2269,7 @@
             particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE); const py = Math.floor((player.y + player.h/2) / TILE_SIZE); const stand = world[`${px},${py}`];
             if (stand === 60 || stand === 90) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { if (stand === 60) currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld'; else currentDimension = currentDimension === 'overworld' ? 'the_end' : 'overworld'; teleportTimer = 0; portalOverlay.style.opacity = 0; const tw = worlds[currentDimension]; let found = false; const pb = stand === 60 ? 60 : 90; for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(tw[`${x},${y}`] === pb) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!tw[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; } updateHUD(); saveGame(); } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
-            if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const tb = world[key]; if (tb && !BLOCK_TYPES[tb].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const b = BLOCK_TYPES[tb]; if (miningProgress >= b.hardness) { if (player.gameMode !== 'creative') { if (b.dropChance !== undefined) { if (Math.random() < b.dropChance) addItemToInventory(b.dropId || b.drop, 1); else if (parseInt(tb) === 57) addItemToInventory(57, 1); } else addItemToInventory(b.drop || parseInt(tb), 1); player.blocksBroken++; updateHUD(); if (player.blocksBroken % 10 === 0) syncLeaderboard(); } delete world[key]; delete blockRotations[currentDimension][key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
+            if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const tb = world[key]; if (tb && !BLOCK_TYPES[tb].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const b = BLOCK_TYPES[tb]; if (miningProgress >= b.hardness) { if (player.gameMode !== 'creative') { if (b.dropChance !== undefined) { if (Math.random() < b.dropChance) addItemToInventory(b.dropId || b.drop, 1); else if (parseInt(tb) === 57) addItemToInventory(57, 1); } else addItemToInventory(b.drop || parseInt(tb), 1); player.blocksBroken++; updateHUD(); if (player.blocksBroken % 10 === 0) syncLeaderboard(); } delete world[key]; if (blockRotations[currentDimension]) delete blockRotations[currentDimension][key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
             let cs = keys['shift'] ? SPRINT_SPEED : SPEED; if (player.isFlying) cs *= 1.5; const inf = BLOCK_TYPES[world[`${px},${py}`]]?.fluid; const isl = BLOCK_TYPES[world[`${px},${py}`]]?.ladder; if (inf) { cs *= 0.4; if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; if (world[`${px},${py}`] === 6) takeDamage(1.5); }
             if (keys['a'] || keys['arrowleft']) { player.vx -= cs; player.facing = -1; player.animTimer += 0.8; } if (keys['d'] || keys['arrowright']) { player.vx += cs; player.facing = 1; player.animTimer += 0.8; } player.vx *= FRICTION; player.x += player.vx; resolveCollision('x'); if (isl) { player.vy = 4; if (keys['w'] || keys[' '] || keys['arrowup']) player.vy = -7; player.vx *= 0.7; player.grounded = true; } else if (!player.isFlying && !inf) { if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; player.squash = 1.3; } player.vy += GRAVITY; } else if (player.isFlying) { if (keys['w'] || keys[' ']) player.vy = -20; else if (keys['s'] || keys['shift']) player.vy = 20; else player.vy *= 0.5; } player.y += player.vy; player.squash += (1 - player.squash) * 0.45; player.grounded = false; if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y'); camera.x += (player.x - width/2 - camera.x) * 0.35; camera.y += (player.y - height/2 - camera.y) * 0.35; 
             let ct = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${Math.floor(player.y/TILE_SIZE)}`; 
