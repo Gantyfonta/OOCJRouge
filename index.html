@@ -2225,7 +2225,14 @@
                     const [wx, wy] = pk.split(',').map(Number);
                     let isPowered = false;
                     const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
-                    for (const [nx, ny] of neighbors) { if (world[`${nx},${ny}`] === 102) { isPowered = true; break; } }
+                    for (const [nx, ny] of neighbors) { 
+                        const nId = world[`${nx},${ny}`];
+                        if (nId === 102) { isPowered = true; break; } 
+                        if (nId === 105) {
+                            const ent = tileEntities[currentDimension][`${nx},${ny}`];
+                            if (ent && ent.active) { isPowered = true; break; }
+                        }
+                    }
                     
                     const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][pk]) || 0;
                     const dir = dirs[rot];
