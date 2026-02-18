@@ -517,6 +517,10 @@
                         <div class="mc-label">Chest</div>
                         <div class="mc-grid" style="grid-template-columns: repeat(9, 48px); margin-bottom: 20px;" id="chest-grid"></div>
                     </div>
+                    <div id="dispenser-view" style="display: none;">
+                        <div class="mc-label">Dispenser</div>
+                        <div class="mc-grid" style="grid-template-columns: repeat(3, 48px); margin-bottom: 20px; width: 152px; margin-left: auto; margin-right: auto;" id="dispenser-grid"></div>
+                    </div>
                     <div id="trading-view" style="display: none;">
                         <div class="mc-label">Villager Trading</div>
                         <div style="display: flex; gap: 15px; margin-bottom: 20px;">
@@ -760,7 +764,9 @@
             103: { name: 'Piston Head', color: '#d2b48c', stroke: '#8b4513', hardness: 50, tool: 'axe' },
             104: { name: 'Iron Wrench', color: '#f5f5f5', stroke: '#bdbdbd', item: true, toolType: 'wrench' },
             105: { name: 'Lever', color: '#616161', stroke: '#424242', hardness: 5, tool: 'pickaxe', nonSolid: true, interactive: true },
-            106: { name: 'Sticky Piston', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', woodTop: '#d2b48c', sticky: true }
+            106: { name: 'Sticky Piston', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', woodTop: '#d2b48c', sticky: true },
+            107: { name: 'Pressure Plate', color: '#828282', stroke: '#555555', hardness: 5, tool: 'pickaxe', nonSolid: true, detector: true },
+            108: { name: 'Dispenser', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', dispenser: true }
         };
 
         const MOB_TYPES = {
@@ -827,7 +833,9 @@
             { pattern: [[102]], result: 34, amount: 9 }, // Redstone Block back to Dust
             { pattern: [[31, null, 31], [31, 31, 31], [null, 31, null]], result: 104, amount: 1 }, // Wrench Recipe (6 iron)
             { pattern: [[15], [7]], result: 105, amount: 1 }, // Lever: Stick over Cobble
-            { pattern: [[101], [93]], result: 106, amount: 1 } // Sticky Piston: Piston + Sapling
+            { pattern: [[101], [93]], result: 106, amount: 1 }, // Sticky Piston: Piston + Sapling
+            { pattern: [[3, 3]], result: 107, amount: 1 }, // Pressure Plate: 2 Stone
+            { pattern: [[7, 7, 7], [7, 85, 7], [7, 34, 7]], result: 108, amount: 1 } // Dispenser: Cobble + Bow + Redstone
         ];
 
         const SMELTING_RECIPES = {
@@ -916,6 +924,7 @@
         let isUsingTable = false;
         let activeFurnacePos = null; 
         let activeChestPos = null;
+        let activeDispenserPos = null;
         let activeVillager = null;
         let activeBlueprintPos = null;
         let tradingSlots = [null, null]; // Trade input slots
@@ -1466,12 +1475,13 @@
             });
         }
 
-        function toggleInventory(useTable = false, furnacePos = null, chestPos = null, villager = null, blueprintPos = null) {
+        function toggleInventory(useTable = false, furnacePos = null, chestPos = null, villager = null, blueprintPos = null, dispenserPos = null) {
             if (isPaused) return;
             inventoryOpen = !inventoryOpen; 
             isUsingTable = useTable;
             activeFurnacePos = furnacePos;
             activeChestPos = chestPos;
+            activeDispenserPos = dispenserPos;
             activeVillager = villager;
             activeBlueprintPos = blueprintPos;
 
@@ -1480,6 +1490,7 @@
             
             const standardTop = document.getElementById('standard-top-section');
             const chestView = document.getElementById('chest-view');
+            const dispenserView = document.getElementById('dispenser-view');
             const tradingView = document.getElementById('trading-view');
             const furnaceView = document.getElementById('furnace-view');
             const craftingView = document.getElementById('crafting-view');
@@ -1488,6 +1499,7 @@
             // Reset visibility
             standardTop.style.display = 'none';
             chestView.style.display = 'none';
+            dispenserView.style.display = 'none';
             tradingView.style.display = 'none';
             furnaceView.style.display = 'none';
             craftingView.style.display = 'none';
@@ -1495,6 +1507,8 @@
 
             if (activeChestPos) {
                 chestView.style.display = 'block';
+            } else if (activeDispenserPos) {
+                dispenserView.style.display = 'block';
             } else if (activeVillager) {
                 tradingView.style.display = 'block';
                 renderTradeList();
@@ -1514,7 +1528,7 @@
 
             if (!inventoryOpen) {
                 const returnItems = (grid) => { grid.forEach((item, i) => { if (item) addItemToInventory(item.id, item.count); grid[i] = null; }); };
-                if (!activeFurnacePos && !activeChestPos && !activeVillager && !activeBlueprintPos) { 
+                if (!activeFurnacePos && !activeChestPos && !activeVillager && !activeBlueprintPos && !activeDispenserPos) { 
                     returnItems(craftingGrid2x2); 
                     returnItems(craftingGrid3x3); 
                 }
@@ -1524,6 +1538,7 @@
                 }
                 activeFurnacePos = null;
                 activeChestPos = null;
+                activeDispenserPos = null;
                 activeVillager = null;
                 activeBlueprintPos = null;
                 if (heldItem) { 
@@ -1534,7 +1549,7 @@
                 saveGame();
             } else {
                 // Ensure standard slots are visible if switching modes
-                if (player.gameMode === 'creative' && !activeFurnacePos && !activeChestPos && !activeVillager && !activeBlueprintPos) {
+                if (player.gameMode === 'creative' && !activeFurnacePos && !activeChestPos && !activeVillager && !activeBlueprintPos && !activeDispenserPos) {
                     // Handled in renderInventory
                 } else {
                     setupInventoryUI(); // Reset standard slot DOM if it was cleared by creative menu
@@ -1569,6 +1584,12 @@
             for (let i = 0; i < 27; i++) {
                 const slot = document.createElement('div'); slot.className = 'mc-slot';
                 slot.dataset.type = 'chest'; slot.dataset.idx = i; setupSlot(slot); chestGrid.appendChild(slot);
+            }
+            const dispenserGrid = document.getElementById('dispenser-grid');
+            dispenserGrid.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const slot = document.createElement('div'); slot.className = 'mc-slot';
+                slot.dataset.type = 'dispenser'; slot.dataset.idx = i; setupSlot(slot); dispenserGrid.appendChild(slot);
             }
             document.querySelectorAll('#crafting-grid-2x2 .mc-slot').forEach(setupSlot);
             document.querySelectorAll('#crafting-grid-3x3 .mc-slot').forEach(setupSlot);
@@ -1653,6 +1674,7 @@
             else if (type === 'craft2') targetArray = craftingGrid2x2;
             else if (type === 'craft3') targetArray = craftingGrid3x3;
             else if (type === 'chest') targetArray = tileEntities[currentDimension][activeChestPos].items;
+            else if (type === 'dispenser') targetArray = tileEntities[currentDimension][activeDispenserPos].items;
             else if (type === 'trade-input') targetArray = tradingSlots;
             else if (type && typeof type === 'string' && type.startsWith('furnace-')) {
                 const f = tileEntities[currentDimension][activeFurnacePos];
@@ -1758,7 +1780,7 @@
 
         function renderInventory() {
             const mainGrid = document.getElementById('main-inventory-grid');
-            if (player.gameMode === 'creative' && !activeFurnacePos && !activeChestPos && !activeVillager && !activeBlueprintPos) {
+            if (player.gameMode === 'creative' && !activeFurnacePos && !activeChestPos && !activeVillager && !activeBlueprintPos && !activeDispenserPos) {
                 mainGrid.innerHTML = '';
                 Object.keys(BLOCK_TYPES).forEach((id) => {
                     const block = BLOCK_TYPES[id];
@@ -1795,6 +1817,15 @@
                     const cSlots = document.getElementById('chest-grid').querySelectorAll('.mc-slot');
                     chest.items.forEach((item, i) => {
                         const slot = cSlots[i]; slot.innerHTML = '';
+                        if (item) slot.appendChild(createItemVisual(item.id, item.count));
+                    });
+                }
+            } else if (activeDispenserPos) {
+                const disp = tileEntities[currentDimension][activeDispenserPos];
+                if (disp && disp.items) {
+                    const dSlots = document.getElementById('dispenser-grid').querySelectorAll('.mc-slot');
+                    disp.items.forEach((item, i) => {
+                        const slot = dSlots[i]; slot.innerHTML = '';
                         if (item) slot.appendChild(createItemVisual(item.id, item.count));
                     });
                 }
@@ -1859,6 +1890,8 @@
                 }
                 if (id === 103) { drawShape({ width: (30*sizeMod)+'px', height: (8*sizeMod)+'px', background: block.color, top: '4px', border: `${sizeMod}px solid ${block.stroke}`, borderRadius: '2px' }); drawShape({ width: (6*sizeMod)+'px', height: (20*sizeMod)+'px', background: '#5d4037', top: (10*sizeMod)+'px', left: (12*sizeMod)+'px' }); }
                 if (id === 34) { drawShape({ width: (10*sizeMod)+'px', height: (10*sizeMod)+'px', background: '#ff1744', borderRadius: '50%', left: '10px', top: '10px' }); }
+                if (id === 107) { drawShape({ width: (24*sizeMod)+'px', height: (4*sizeMod)+'px', background: '#828282', left: '3px', top: '20px', border: `${sizeMod}px solid #555` }); }
+                if (id === 108) { drawShape({ width: (12*sizeMod)+'px', height: (12*sizeMod)+'px', background: '#333', borderRadius: '50%', left: '9px', top: '9px', border: `${sizeMod}px solid #111` }); }
             } else if (id === 95) { drawShape({ width: (18*sizeMod)+'px', height: (26*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', boxShadow: `inset -4px 0 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(255,255,255,0.4)` }); }
             else if (id === 94) { drawShape({ width: (30*sizeMod)+'px', height: (28*sizeMod)+'px', background: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.2)` }); drawShape({ width: (30*sizeMod)+'px', height: (4*sizeMod)+'px', background: 'rgba(0,0,0,0.2)', top: (10*sizeMod)+'px' }); drawShape({ width: (6*sizeMod)+'px', height: (8*sizeMod)+'px', background: '#f1c40f', left: (12*sizeMod)+'px', top: (10*sizeMod)+'px', border: `${sizeMod}px solid #b8860b` }); }
             else if (id === 93) { drawShape({ width: (4*sizeMod)+'px', height: (16*sizeMod)+'px', background: '#5c3b1e', bottom: '4px' }); drawShape({ width: (14*sizeMod)+'px', height: (14*sizeMod)+'px', background: '#76b052', border: `${sizeMod}px solid #3e5b2e`, borderRadius: '0 50% 0 50%', top: '4px', left: '10px' }); }
@@ -1898,6 +1931,7 @@
                 else if (type === 'craft2') item = craftingGrid2x2[idx]; 
                 else if (type === 'craft3') item = craftingGrid3x3[idx]; 
                 else if (type === 'chest') { const c = tileEntities[currentDimension][activeChestPos]; if (c) item = c.items[idx]; }
+                else if (type === 'dispenser') { const d = tileEntities[currentDimension][activeDispenserPos]; if (d) item = d.items[idx]; }
                 else if (type === 'trade-input') item = tradingSlots[idx];
                 else if (type && typeof type === 'string' && type.startsWith('furnace-')) { const f = tileEntities[currentDimension][activeFurnacePos]; if (f) item = f[type.replace('furnace-', '')]; } 
                 else if (type === 'creative') item = { id: parseInt(invSlot.dataset.itemId) }; 
@@ -1935,7 +1969,7 @@
                 const m = currentMobs[i];
                 if(hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
                     const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
-                    if(dist < 180) { m.health -= damage; m.vx = (m.x - player.x) > 0 ? knockback : -knockback; m.vy = -5; createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10); if(m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); currentMobs.splice(i, 1); } return; }
+                    if(dist < 180) { m.health -= damage; m.vx = (m.x - player.x) > 0 ? knockback : -knockback; m.vy = -5; createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10); if(m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); cm.splice(mi, 1); } return; }
                 }
             }
         }
@@ -1989,7 +2023,11 @@
                     }
                 }
 
-                const block = BLOCK_TYPES[world[key]]; if (block?.table) { toggleInventory(true); return; } if (block?.chest) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { items: new Array(27).fill(null) }; } toggleInventory(false, null, key); return; } if (block?.furnace) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, cookProgress: 0 }; } toggleInventory(false, key); return; } if (block?.blueprint) { toggleInventory(false, null, null, null, key); return; } if (activeItem && activeItem.id === 64) { if (world[key] === 63) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(65, 1); updateHUD(); broadcastWorldChange(); return; } else if (world[key] === 6) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(66, 1); updateHUD(); broadcastWorldChange(); return; } } if (activeItem && (activeItem.id === 65 || activeItem.id === 66)) { if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = (activeItem.id === 65 ? 63 : 6); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); updateHUD(); broadcastWorldChange(); return; } } if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; } if (activeItem && (!world[key] || BLOCK_TYPES[world[key]]?.fluid) && !BLOCK_TYPES[activeItem.id].item) { const btp = BLOCK_TYPES[activeItem.id]; if (activeItem.id === 93) { const below = world[`${wx},${wy+1}`]; if (below !== 1 && below !== 2) return; } const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE }; if (btp.nonSolid || !checkOverlap(player, rect)) { world[key] = activeItem.id; if (activeItem.id === 93) { tileEntities[currentDimension][key] = { type: 'sapling', timer: 30 * TICKS_PER_SECOND }; } if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; } updateHUD(); broadcastWorldChange(); } } 
+                const block = BLOCK_TYPES[world[key]]; 
+                if (block?.table) { toggleInventory(true); return; } 
+                if (block?.chest) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { items: new Array(27).fill(null) }; } toggleInventory(false, null, key); return; } 
+                if (block?.dispenser) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { items: new Array(9).fill(null), powered: false }; } toggleInventory(false, null, null, null, null, key); return; }
+                if (block?.furnace) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, cookProgress: 0 }; } toggleInventory(false, key); return; } if (block?.blueprint) { toggleInventory(false, null, null, null, key); return; } if (activeItem && activeItem.id === 64) { if (world[key] === 63) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(65, 1); updateHUD(); broadcastWorldChange(); return; } else if (world[key] === 6) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(66, 1); updateHUD(); broadcastWorldChange(); return; } } if (activeItem && (activeItem.id === 65 || activeItem.id === 66)) { if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = (activeItem.id === 65 ? 63 : 6); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); updateHUD(); broadcastWorldChange(); return; } } if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; } if (activeItem && (!world[key] || BLOCK_TYPES[world[key]]?.fluid) && !BLOCK_TYPES[activeItem.id].item) { const btp = BLOCK_TYPES[activeItem.id]; if (activeItem.id === 93) { const below = world[`${wx},${wy+1}`]; if (below !== 1 && below !== 2) return; } const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE }; if (btp.nonSolid || !checkOverlap(player, rect)) { world[key] = activeItem.id; if (activeItem.id === 93) { tileEntities[currentDimension][key] = { type: 'sapling', timer: 30 * TICKS_PER_SECOND }; } if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; } updateHUD(); broadcastWorldChange(); } } 
             }
         }
 
@@ -2236,10 +2274,14 @@
                         const [x, y] = key.split(',').map(Number);
                         queue.push({x, y, p: 15});
                     }
+                } else if (id === 107) { // Pressure Plate
+                    if (entities[key] && entities[key].active) {
+                        const [x, y] = key.split(',').map(Number);
+                        queue.push({x, y, p: 15});
+                    }
                 }
             }
 
-            const visited = new Set();
             while (queue.length > 0) {
                 const {x, y, p} = queue.shift();
                 const neighbors = [[x, y-1], [x, y+1], [x-1, y], [x+1, y]];
@@ -2266,7 +2308,31 @@
             const det = tileEntities[currentDimension]; for (let pos in det) { const ent = det[pos]; if (ent.type === 'sapling') { if (world[pos] !== 93) { delete det[pos]; continue; } ent.timer--; if (ent.timer <= 0) { const [sx, sy] = pos.split(',').map(Number); delete world[pos]; spawnTree(sx, sy, currentDimension); delete det[pos]; broadcastWorldChange(); } } else if (BLOCK_TYPES[world[pos]]?.furnace) { const f = ent; const rec = SMELTING_RECIPES[f.input?.id]; const can = rec && (!f.output || (f.output.id === rec.result && f.output.count < 64)); if (f.burnTime > 0) { f.burnTime--; if (can) { f.cookProgress++; if (f.cookProgress >= rec.time) { f.cookProgress = 0; f.input.count--; if (f.input.count <= 0) f.input = null; if (!f.output) f.output = { id: rec.result, count: 1 }; else f.output.count++; if (activeFurnacePos === pos) renderInventory(); } } else f.cookProgress = 0; } if (f.burnTime <= 0 && can && f.fuel) { const fv = FUEL_VALUES[f.fuel.id]; if (fv) { f.burnTime = fv; f.maxBurnTime = fv; f.fuel.count--; if (f.fuel.count <= 0) f.fuel = null; if (activeFurnacePos === pos) renderInventory(); } } if (f.burnTime <= 0 && !can) f.cookProgress = 0; if (activeFurnacePos === pos && inventoryOpen) renderInventory(); } }
             if (inventoryOpen) return;
             
-            // --- Redstone & Piston Logic ---
+            // --- Detector Blocks Logic (Pressure Plate) ---
+            const detectorBlocks = Object.keys(world).filter(k => BLOCK_TYPES[world[k]]?.detector);
+            detectorBlocks.forEach(dk => {
+                const [wx, wy] = dk.split(',').map(Number);
+                const rect = { x: wx * TILE_SIZE, y: (wy - 0.2) * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE * 0.4 };
+                let isActive = checkOverlap(player, rect);
+                if (!isActive) {
+                    const currentMobs = mobs[currentDimension];
+                    for (let m of currentMobs) {
+                        if (checkOverlap(m, rect)) { isActive = true; break; }
+                    }
+                }
+                if (!isActive) {
+                    for (let pid in otherPlayers) {
+                        if (otherPlayers[pid].dim === currentDimension && checkOverlap(otherPlayers[pid], rect)) { isActive = true; break; }
+                    }
+                }
+                if (!det[dk]) det[dk] = { active: false };
+                if (det[dk].active !== isActive) {
+                    det[dk].active = isActive;
+                    broadcastWorldChange();
+                }
+            });
+
+            // --- Redstone & Piston & Dispenser Logic ---
             redstoneTimer++;
             if (redstoneTimer >= 5) {
                 redstoneTimer = 0;
@@ -2276,6 +2342,61 @@
             pistonTimer++;
             if (pistonTimer >= 10) {
                 pistonTimer = 0;
+                
+                // --- Dispenser Logic ---
+                const dispensers = Object.keys(world).filter(k => world[k] === 108);
+                dispensers.forEach(dk => {
+                    if (!det[dk]) det[dk] = { items: new Array(9).fill(null), powered: false };
+                    const ent = det[dk];
+                    const [wx, wy] = dk.split(',').map(Number);
+                    
+                    let isPowered = false;
+                    const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
+                    for (const [nx, ny] of neighbors) { 
+                        const nk = `${nx},${ny}`;
+                        if (world[nk] === 102) { isPowered = true; break; } 
+                        if (world[nk] === 105 || world[nk] === 107) {
+                            if (det[nk] && det[nk].active) { isPowered = true; break; }
+                        }
+                        if (world[nk] === 34) {
+                            if (det[nk] && det[nk].power > 0) { isPowered = true; break; }
+                        }
+                    }
+
+                    // Rising edge detection
+                    if (isPowered && !ent.powered) {
+                        ent.powered = true;
+                        // Find an arrow stack
+                        let arrowIdx = -1;
+                        for (let i = 0; i < ent.items.length; i++) {
+                            if (ent.items[i]?.id === 86) { arrowIdx = i; break; }
+                        }
+                        if (arrowIdx !== -1 || player.gameMode === 'creative') {
+                            if (arrowIdx !== -1) {
+                                ent.items[arrowIdx].count--;
+                                if (ent.items[arrowIdx].count <= 0) ent.items[arrowIdx] = null;
+                            }
+                            // Fire arrow in facing direction
+                            const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][dk]) || 0;
+                            const fireDirs = [{vx:0, vy:-1}, {vx:1, vy:0}, {vx:0, vy:1}, {vx:-1, vy:0}];
+                            const fd = fireDirs[rot];
+                            // Spawn arrow with an offset to avoid self-collision immediately
+                            projectiles.push({
+                                x: (wx + 0.5 + fd.vx * 0.6) * TILE_SIZE,
+                                y: (wy + 0.5 + fd.vy * 0.6) * TILE_SIZE,
+                                vx: fd.vx * 15,
+                                vy: fd.vy * 15,
+                                life: 200, color: '#8d6e63', type: 'player_arrow', damage: 4
+                            });
+                            if (activeDispenserPos === dk) renderInventory();
+                            broadcastWorldChange();
+                        }
+                    } else if (!isPowered) {
+                        ent.powered = false;
+                    }
+                });
+
+                // --- Piston Logic ---
                 const pistons = Object.keys(world).filter(k => world[k] === 101 || world[k] === 106);
                 const dirs = [{dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0}];
 
@@ -2287,7 +2408,7 @@
                         const nk = `${nx},${ny}`;
                         const nId = world[nk];
                         if (nId === 102) { isPowered = true; break; } 
-                        if (nId === 105) {
+                        if (nId === 105 || nId === 107) {
                             const ent = tileEntities[currentDimension][nk];
                             if (ent && ent.active) { isPowered = true; break; }
                         }
@@ -2417,7 +2538,7 @@
             const b = BLOCK_TYPES[type]; if(!b) return; const size = TILE_SIZE * scale; const tx = x * TILE_SIZE + offsetX; const ty = y * TILE_SIZE + offsetY; const time = Date.now() / 300; const world = worlds[currentDimension];
             ctx.save(); 
             // Handle block rotation
-            if (rotIdx !== 0 && type !== 105 && type !== 34) { // Lever handles its own rotation visually
+            if (rotIdx !== 0 && type !== 105 && type !== 34 && type !== 107) { // Lever and Plate handle their own logic
                 ctx.translate(tx + size/2, ty + size/2);
                 ctx.rotate(rotIdx * Math.PI / 2);
                 ctx.translate(-(tx + size/2), -(ty + size/2));
@@ -2436,14 +2557,32 @@
                 ctx.fillRect(tx + size*0.35, ty + size*0.35, size*0.3, size*0.3);
                 for (const [nx, ny] of neighbors) {
                     const nid = world[`${nx},${ny}`];
-                    if (nid === 34 || nid === 102 || nid === 101 || nid === 106 || nid === 105) {
+                    if (nid === 34 || nid === 102 || nid === 101 || nid === 106 || nid === 105 || nid === 107 || nid === 108) {
                         const dx = nx - x, dy = ny - y;
                         ctx.fillRect(tx + size*0.35 + dx*size*0.35, ty + size*0.35 + dy*size*0.35, size*0.3, size*0.3);
                     }
                 }
+            } else if (type === 107) { // Pressure Plate Visuals
+                const ent = tileEntities[currentDimension][`${x},${y}`];
+                const active = ent?.active;
+                ctx.fillStyle = b.color;
+                const ph = active ? 2 : 6;
+                ctx.fillRect(tx + size*0.1, ty + size - ph, size*0.8, ph);
+                ctx.strokeStyle = b.stroke;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(tx + size*0.1, ty + size - ph, size*0.8, ph);
+            } else if (type === 108) { // Dispenser Visuals
+                ctx.fillRect(tx, ty, size, size);
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(tx + size/2, ty + size/2, size/4, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#111';
+                ctx.lineWidth = 2 * scale;
+                ctx.stroke();
             } else if (b.animated) { if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`; else if (type === 90) ctx.fillStyle = `rgb(${10 + Math.sin(time)*5}, 0, ${30 + Math.cos(time)*10})`; else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`; else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`; else if (type === 63) ctx.fillStyle = b.color; }
             
-            if (type !== 34) {
+            if (type !== 34 && type !== 107 && type !== 108) {
                 if (b.texture === 'glass') { ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, size, size); }
                 else if (type === 35) { ctx.fillStyle = b.color; ctx.fillRect(tx + size*0.1, ty, size*0.15, size); ctx.fillRect(tx + size*0.75, ty, size*0.15, size); for(let i=0; i<3; i++) ctx.fillRect(tx + size*0.1, ty + size*(0.2 + i*0.3), size*0.8, size*0.12); ctx.strokeStyle = b.stroke; ctx.lineWidth = 1; ctx.strokeRect(tx + size*0.1, ty, size*0.15, size); ctx.strokeRect(tx + size*0.75, ty, size*0.15, size); }
                 else if (type === 93) { ctx.fillStyle = '#5c3b1e'; ctx.fillRect(tx + size*0.4, ty + size*0.4, size*0.2, size*0.6); ctx.fillStyle = '#76b052'; ctx.fillRect(tx + size*0.3, ty + size*0.1, size*0.4, size*0.4); ctx.strokeStyle = '#3e5b2e'; ctx.lineWidth = 1; ctx.strokeRect(tx + size*0.3, ty + size*0.1, size*0.4, size*0.4); }
@@ -2485,7 +2624,7 @@
             if (type === 11) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + size/2, ty + size/2, size/2.5, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * scale; ctx.beginPath(); ctx.moveTo(tx + size/2, ty + size/2); const angle = (gameTime / DAY_LENGTH) * Math.PI * 2; ctx.lineTo(tx + size/2 + Math.cos(angle)*10*scale, ty + size/2 + Math.sin(angle)*10*scale); ctx.stroke(); }
             if (type === 100) { ctx.fillStyle = '#9c27b0'; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+size*0.1, ty+size*0.1, size*0.8, size*0.8); ctx.fillStyle = '#fff'; ctx.fillRect(tx+size*0.35, ty+size*0.35, size*0.3, size*0.3); }
             if (type === 90) { ctx.fillStyle = '#fff'; for(let i=0; i<3; i++) ctx.fillRect(tx + (Math.sin(time + i)*size/2) + size/2, ty + (Math.cos(time + i)*size/2) + size/2, 2, 2); }
-            if (!b.fluid && b.texture !== 'glass' && type !== 35 && type !== 93 && type !== 34) { ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size); }
+            if (!b.fluid && b.texture !== 'glass' && type !== 35 && type !== 93 && type !== 34 && type !== 107 && type !== 108) { ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2 * scale; ctx.strokeRect(tx+1*scale, ty+1*scale, size-2*scale, size-2*scale); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.strokeRect(tx, ty, size, size); }
             if (miningTarget?.wx === x && miningTarget?.wy === y && scale === 1) { const stage = Math.floor((miningProgress / b.hardness) * 5); if (stage > 0) { ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3; for (let i = 0; i < stage; i++) { ctx.beginPath(); ctx.moveTo(tx+(i*8), ty); ctx.lineTo(tx+TILE_SIZE, ty+TILE_SIZE-(i*8)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(tx, ty+(i*8)); ctx.lineTo(tx+TILE_SIZE-(i*8), ty+TILE_SIZE); ctx.stroke(); } } } ctx.restore();
         }
 
