@@ -702,7 +702,7 @@
             11: { name: 'Clock', color: '#fdd835', stroke: '#f9a825', special: true, hardness: 80, tool: 'pickaxe', requiredTier: 2 },
             12: { name: 'Crafting Table', color: '#795548', stroke: '#3e2723', hardness: 40, table: true, tool: 'axe' },
             13: { name: 'Coal Ore', color: '#828282', stroke: '#555555', hardness: 55, ore: '#212121', tool: 'pickaxe', drop: 30, requiredTier: 1 },
-            14: { name: 'Iron Ore', color: '#828282', stroke: '#555555', hardness: 75, ore: '#d7ccc8', tool: 'pickaxe', drop: 14, requiredTier: 1 }, 
+            14: { name: 'Iron Ore', color: '#828282', stroke: '#555555', hardness: 75, ore: '#d7ccc8', tool: 'pickaxe', drop: 31, requiredTier: 1 }, 
             15: { name: 'Stick', color: '#5d4037', stroke: '#3e2723', hardness: 10, item: true },
             16: { name: 'Wood Pickaxe', color: '#6d4c41', toolType: 'pickaxe', tier: 1, item: true },
             17: { name: 'Wood Shovel', color: '#6d4c41', toolType: 'shovel', tier: 1, item: true },
@@ -713,7 +713,7 @@
             22: { name: 'Iron Pickaxe', color: '#e0e0e0', toolType: 'pickaxe', tier: 3, item: true },
             23: { name: 'Iron Shovel', color: '#e0e0e0', toolType: 'shovel', tier: 3, item: true },
             24: { name: 'Iron Axe', color: '#e0e0e0', toolType: 'axe', tier: 3, item: true },
-            25: { name: 'Gold Ore', color: '#828282', stroke: '#555555', hardness: 80, ore: '#ffeb3b', tool: 'pickaxe', drop: 25, requiredTier: 1 },
+            25: { name: 'Gold Ore', color: '#828282', stroke: '#555555', hardness: 80, ore: '#ffeb3b', tool: 'pickaxe', drop: 32, requiredTier: 1 },
             26: { name: 'Diamond Ore', color: '#828282', stroke: '#555555', hardness: 150, ore: '#00e5ff', tool: 'pickaxe', drop: 33, requiredTier: 3 },
             27: { name: 'Redstone Ore', color: '#828282', stroke: '#555555', hardness: 70, ore: '#ff1744', tool: 'pickaxe', drop: 34, requiredTier: 3 },
             28: { name: 'Obsidian', color: '#212121', stroke: '#1a1a1a', hardness: 600, tool: 'pickaxe', texture: 'obsidian', requiredTier: 4 },
@@ -767,7 +767,17 @@
             106: { name: 'Sticky Piston', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', woodTop: '#d2b48c', sticky: true },
             107: { name: 'Pressure Plate', color: '#828282', stroke: '#555555', hardness: 5, tool: 'pickaxe', nonSolid: true, detector: true },
             108: { name: 'Dispenser', color: '#757575', stroke: '#424242', hardness: 50, tool: 'pickaxe', dispenser: true },
-            109: { name: 'Slime Block', color: 'rgba(182, 225, 146, 0.8)', stroke: '#76b052', hardness: 5, tool: 'axe', slime: true }
+            109: { name: 'Slime Block', color: 'rgba(182, 225, 146, 0.8)', stroke: '#76b052', hardness: 5, tool: 'axe', slime: true },
+            110: { name: 'Aether Grass', color: '#b2ebf2', stroke: '#4dd0e1', hardness: 10, tool: 'shovel', topColor: '#e0f7fa' },
+            111: { name: 'Aether Dirt', color: '#eceff1', stroke: '#cfd8dc', hardness: 12, tool: 'shovel' },
+            112: { name: 'Holystone', color: '#f5f5f5', stroke: '#e0e0e0', hardness: 50, tool: 'pickaxe', texture: 'holystone', requiredTier: 1, drop: 112 },
+            113: { name: 'Ambrosium Ore', color: '#f5f5f5', stroke: '#e0e0e0', hardness: 55, ore: '#f1c40f', tool: 'pickaxe', drop: 114, requiredTier: 1 },
+            114: { name: 'Ambrosium Shard', color: '#f1c40f', item: true, type: 'gem' },
+            115: { name: 'Skyroot Log', color: '#cfd8dc', stroke: '#90a4ae', hardness: 30, tool: 'axe' },
+            116: { name: 'Skyroot Leaves', color: '#e1f5fe', stroke: '#81d4fa', hardness: 5 },
+            117: { name: 'Zanite Ore', color: '#f5f5f5', stroke: '#e0e0e0', hardness: 75, ore: '#9c27b0', tool: 'pickaxe', drop: 118, requiredTier: 2 },
+            118: { name: 'Zanite Gem', color: '#9c27b0', item: true, type: 'gem' },
+            119: { name: 'Aether Portal', color: '#e0f7fa', stroke: '#81d4fa', hardness: 999, animated: true, teleport: true, toDimension: 'aether' }
         };
 
         const MOB_TYPES = {
@@ -792,6 +802,7 @@
         const RECIPES = [
             // Core Materials
             { pattern: [[4]], result: 10, amount: 4 }, // Log to Planks
+            { pattern: [[115]], result: 10, amount: 4 }, // Skyroot Log to Planks
             { pattern: [[10], [10]], result: 15, amount: 4 }, // Planks to Sticks
             { pattern: [[10, 10], [10, 10]], result: 12, amount: 1 }, // Crafting Table
             { pattern: [[10, 10, 10], [10, null, 10], [10, 10, 10]], result: 94, amount: 1 }, // Chest
@@ -844,14 +855,18 @@
             7: { result: 3, time: 200 }, 
             14: { result: 31, time: 200 }, 
             25: { result: 32, time: 200 }, 
-            8: { result: 9, time: 200 } 
+            8: { result: 9, time: 200 },
+            113: { result: 114, time: 200 },
+            117: { result: 118, time: 200 }
         };
 
         const FUEL_VALUES = {
             30: 1600, 
             4: 300,   
             10: 300,  
-            15: 100   
+            15: 100,
+            114: 800, // Ambrosium shard as fuel
+            115: 300
         };
 
         const canvas = document.getElementById('gameCanvas');
@@ -872,10 +887,10 @@
         let camera = { x: 0, y: 0 };
         let gameTime = 6000; 
         let currentDimension = 'overworld';
-        let worlds = { overworld: {}, nether: {}, the_end: {} };
-        let blockRotations = { overworld: {}, nether: {}, the_end: {} };
-        let tileEntities = { overworld: {}, nether: {}, the_end: {} };
-        let mobs = { overworld: [], nether: [], the_end: [] };
+        let worlds = { overworld: {}, nether: {}, the_end: {}, aether: {} };
+        let blockRotations = { overworld: {}, nether: {}, the_end: {}, aether: {} };
+        let tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {} };
+        let mobs = { overworld: [], nether: [], the_end: [], aether: [] };
         let projectiles = [];
         let teleportTimer = 0;
         let activeSaveSlot = null;
@@ -1068,8 +1083,8 @@
                 isLanHost = false;
                 
                 // Load host world data
-                worlds = data.world || { overworld: {}, nether: {}, the_end: {} };
-                blockRotations = data.rotations || { overworld: {}, nether: {}, the_end: {} };
+                worlds = data.world || { overworld: {}, nether: {}, the_end: {}, aether: {} };
+                blockRotations = data.rotations || { overworld: {}, nether: {}, the_end: {}, aether: {} };
                 gameTime = data.gameTime || 6000;
                 currentSeedDisplay = data.seed || "Remote";
                 
@@ -1365,9 +1380,9 @@
 
         function loadGame(data) {
             worlds = data.worlds; 
-            blockRotations = data.blockRotations || { overworld: {}, nether: {}, the_end: {} };
-            tileEntities = data.tileEntities || { overworld: {}, nether: {}, the_end: {} };
-            mobs = data.mobs || { overworld: [], nether: [], the_end: [] };
+            blockRotations = data.blockRotations || { overworld: {}, nether: {}, the_end: {}, aether: {} };
+            tileEntities = data.tileEntities || { overworld: {}, nether: {}, the_end: {}, aether: {} };
+            mobs = data.mobs || { overworld: [], nether: [], the_end: [], aether: [] };
             player.x = data.player.x; player.y = data.player.y;
             player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
             player.blocksBroken = data.player.blocksBroken || 0;
@@ -1385,12 +1400,12 @@
                 }
                 currentSeedDisplay = seed;
                 worldRNG = new SeededRandom(seed);
-                worlds = { overworld: {}, nether: {}, the_end: {} };
-                blockRotations = { overworld: {}, nether: {}, the_end: {} };
-                tileEntities = { overworld: {}, nether: {}, the_end: {} };
-                mobs = { overworld: [], nether: [], the_end: [] };
+                worlds = { overworld: {}, nether: {}, the_end: {}, aether: {} };
+                blockRotations = { overworld: {}, nether: {}, the_end: {}, aether: {} };
+                tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {} };
+                mobs = { overworld: [], nether: [], the_end: [], aether: [] };
                 gameTime = 6000;
-                generateOverworld(); generateNether(); generateEnd();
+                generateOverworld(); generateNether(); generateEnd(); generateAether();
             }
             mainInventory = new Array(27).fill(null); hotbarInventory = new Array(9).fill(null);
             
@@ -1883,7 +1898,7 @@
             const sizeMod = scale;
             if (!block.item && !block.toolType && !block.type?.includes('bucket') && !block.special && id !== 95 && id !== 85 && id !== 86 && id !== 71 && id !== 94 && id !== 93 && id !== 15 && id !== 35 && !block.type?.includes('food')) {
                 drawShape({ width: (30*sizeMod)+'px', height: (30*sizeMod)+'px', backgroundColor: block.color, border: `${2*sizeMod}px solid ${block.stroke}`, borderRadius: '2px', boxShadow: `inset -4px -4px 0 rgba(0,0,0,0.1), inset 4px 4px 0 rgba(255,255,255,0.1)` });
-                if (id === 1) drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.topColor, top: '0', borderRadius: '2px 2px 0 0', borderBottom: `${2*sizeMod}px solid ${block.stroke}` });
+                if (id === 1 || id === 110) drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.topColor, top: '0', borderRadius: '2px 2px 0 0', borderBottom: `${2*sizeMod}px solid ${block.stroke}` });
                 if (block.ore) { for(let i=0; i<4; i++) { drawShape({ width: (4*sizeMod)+'px', height: (4*sizeMod)+'px', background: block.ore, left: (4 + Math.random()*20)*sizeMod+'px', top: (4 + Math.random()*20)*sizeMod+'px', boxShadow: `1px 1px 0 rgba(0,0,0,0.2)` }); } }
                 if (id === 101 || id === 106) { 
                     drawShape({ width: (30*sizeMod)+'px', height: (10*sizeMod)+'px', background: block.woodTop, top: '0', borderBottom: `${2*sizeMod}px solid #8b4513`, borderRadius: '2px 2px 0 0' }); 
@@ -2030,7 +2045,17 @@
                 if (block?.table) { toggleInventory(true); return; } 
                 if (block?.chest) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { items: new Array(27).fill(null) }; } toggleInventory(false, null, key); return; } 
                 if (block?.dispenser) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { items: new Array(9).fill(null), powered: false }; } toggleInventory(false, null, null, null, null, key); return; }
-                if (block?.furnace) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, cookProgress: 0 }; } toggleInventory(false, key); return; } if (block?.blueprint) { toggleInventory(false, null, null, null, key); return; } if (activeItem && activeItem.id === 64) { if (world[key] === 63) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(65, 1); updateHUD(); broadcastWorldChange(); return; } else if (world[key] === 6) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(66, 1); updateHUD(); broadcastWorldChange(); return; } } if (activeItem && (activeItem.id === 65 || activeItem.id === 66)) { if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = (activeItem.id === 65 ? 63 : 6); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); updateHUD(); broadcastWorldChange(); return; } } if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; } if (activeItem && (!world[key] || BLOCK_TYPES[world[key]]?.fluid) && !BLOCK_TYPES[activeItem.id].item) { const btp = BLOCK_TYPES[activeItem.id]; if (activeItem.id === 93) { const below = world[`${wx},${wy+1}`]; if (below !== 1 && below !== 2) return; } const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE }; if (btp.nonSolid || !checkOverlap(player, rect)) { world[key] = activeItem.id; if (activeItem.id === 93) { tileEntities[currentDimension][key] = { type: 'sapling', timer: 30 * TICKS_PER_SECOND }; } if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; } updateHUD(); broadcastWorldChange(); } } 
+                if (block?.furnace) { if (!tileEntities[currentDimension][key]) { tileEntities[currentDimension][key] = { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, cookProgress: 0 }; } toggleInventory(false, key); return; } if (block?.blueprint) { toggleInventory(false, null, null, null, key); return; } 
+                if (activeItem && activeItem.id === 64) { if (world[key] === 63) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(65, 1); updateHUD(); broadcastWorldChange(); return; } else if (world[key] === 6) { delete world[key]; activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(66, 1); updateHUD(); broadcastWorldChange(); return; } } 
+                if (activeItem && activeItem.id === 65) { 
+                    // Nether/Aether logic? Water evaporates in Nether usually but let's keep it simple
+                    // Check for Glowstone portal trigger
+                    if (world[key] === 52) { tryIgniteAetherPortal(wx, wy); return; }
+                    if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = 63; if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); } updateHUD(); broadcastWorldChange(); return; } 
+                }
+                if (activeItem && activeItem.id === 66) { if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = 6; if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); } updateHUD(); broadcastWorldChange(); return; } } 
+                if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; } 
+                if (activeItem && (!world[key] || BLOCK_TYPES[world[key]]?.fluid) && !BLOCK_TYPES[activeItem.id].item) { const btp = BLOCK_TYPES[activeItem.id]; if (activeItem.id === 93) { const below = world[`${wx},${wy+1}`]; if (below !== 1 && below !== 2) return; } const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE }; if (btp.nonSolid || !checkOverlap(player, rect)) { world[key] = activeItem.id; if (activeItem.id === 93) { tileEntities[currentDimension][key] = { type: 'sapling', timer: 30 * TICKS_PER_SECOND }; } if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; } updateHUD(); broadcastWorldChange(); } } 
             }
         }
 
@@ -2047,6 +2072,8 @@
         function resolveEntityCollision(ent, axis) { const world = worlds[currentDimension]; const x1 = Math.floor(ent.x / TILE_SIZE), x2 = Math.floor((ent.x + ent.w - 1) / TILE_SIZE); const y1 = Math.floor(ent.y / TILE_SIZE), y2 = Math.floor((ent.y + ent.h - 1) / TILE_SIZE); for (let x = x1; x <= x2; x++) { for (let y = y1; y <= y2; y++) { const type = world[`${x},${y}`]; if (type) { const block = BLOCK_TYPES[type]; if (block.teleport || block.fluid || block.ladder) continue; if (axis === 'x') { if (ent.vx > 0) ent.x = x * TILE_SIZE - ent.w; else if (ent.vx < 0) ent.x = (x + 1) * TILE_SIZE; ent.vx = 0; if(ent.grounded && Math.random() < 0.2) ent.vy = -12; } else { if (ent.vy > 0) { ent.y = y * TILE_SIZE - ent.h; ent.grounded = true; } else if (ent.vy < 0) { ent.y = (y + 1) * TILE_SIZE; } ent.vy = 0; } } } } }
 
         function tryIgnitePortal(wx, wy) { const world = worlds[currentDimension]; for(let sx = wx - 4; sx <= wx + 4; sx++) { for(let sy = wy - 5; sy <= wy + 5; sy++) { if(world[`${sx},${sy}`] === 28 && world[`${sx+3},${sy}`] === 28) { let isFrame = true; for(let x=0; x<4; x++) if(world[`${sx+x},${sy}`] !== 28 || world[`${sx+x},${sy+4}`] !== 28) isFrame = false; for(let y=0; y<5; y++) if(world[`${sx},${sy+y}`] !== 28 || world[`${sx+3},${sy+y}`] !== 28) isFrame = false; if(isFrame) { for(let x=1; x<=2; x++) for(let y=1; y<=3; y++) world[`${sx+x},${sy+y}`] = 60; broadcastWorldChange(); return; } } } } }
+
+        function tryIgniteAetherPortal(wx, wy) { const world = worlds[currentDimension]; for(let sx = wx - 4; sx <= wx + 4; sx++) { for(let sy = wy - 5; sy <= wy + 5; sy++) { if(world[`${sx},${sy}`] === 52 && world[`${sx+3},${sy}`] === 52) { let isFrame = true; for(let x=0; x<4; x++) if(world[`${sx+x},${sy}`] !== 52 || world[`${sx+x},${sy+4}`] !== 52) isFrame = false; for(let y=0; y<5; y++) if(world[`${sx},${sy+y}`] !== 52 || world[`${sx+3},${sy+y}`] !== 52) isFrame = false; if(isFrame) { for(let x=1; x<=2; x++) for(let y=1; y<=3; y++) world[`${sx+x},${sy+y}`] = 119; broadcastWorldChange(); return; } } } } }
 
         function handleSlotAction(slot, action) {
             const nameInput = document.getElementById('player-name-input').value.trim();
@@ -2067,7 +2094,7 @@
         }
         window.handleSlotAction = handleSlotAction;
 
-        function updateHUD() { const hud = document.getElementById('hotbar-hud'); hud.innerHTML = ''; for (let i = 0; i < 9; i++) { const item = hotbarInventory[i]; const slot = document.createElement('div'); slot.className = `hud-slot ${activeHotbarIndex === i ? 'active' : ''}`; if (item) slot.appendChild(createItemVisual(item.id, item.count)); hud.appendChild(slot); } let dimName = "Overworld"; if (currentDimension === 'nether') dimName = "The Nether"; else if (currentDimension === 'the_end') dimName = "The End"; document.getElementById('dim-indicator').innerText = dimName; document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : (currentDimension === 'nether' ? '#ff4d4d' : '#9c27b0'); heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex'; document.getElementById('blocks-broken-hud').innerText = `BLOCKS BROKEN: ${player.blocksBroken}`; }
+        function updateHUD() { const hud = document.getElementById('hotbar-hud'); hud.innerHTML = ''; for (let i = 0; i < 9; i++) { const item = hotbarInventory[i]; const slot = document.createElement('div'); slot.className = `hud-slot ${activeHotbarIndex === i ? 'active' : ''}`; if (item) slot.appendChild(createItemVisual(item.id, item.count)); hud.appendChild(slot); } let dimName = "Overworld"; if (currentDimension === 'nether') dimName = "The Nether"; else if (currentDimension === 'the_end') dimName = "The End"; else if (currentDimension === 'aether') dimName = "The Aether"; document.getElementById('dim-indicator').innerText = dimName; document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : (currentDimension === 'nether' ? '#ff4d4d' : (currentDimension === 'aether' ? '#f1c40f' : '#9c27b0')); heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex'; document.getElementById('blocks-broken-hud').innerText = `BLOCKS BROKEN: ${player.blocksBroken}`; }
         function updateHeartsUI() { heartsContainer.innerHTML = ''; for(let i=0; i<MAX_HEALTH; i++) { const heart = document.createElement('div'); heart.className = `heart ${i >= player.health ? 'empty' : ''}`; heartsContainer.appendChild(heart); } }
 
         // --- Seeded World Generation ---
@@ -2122,6 +2149,34 @@
             world[`${portalX},${portalY}`] = 90;
         }
 
+        function generateAether() {
+            const world = worlds.aether;
+            const seed = worldRNG.next() * 5000;
+            for (let x = 0; x < WORLD_WIDTH; x++) {
+                for (let y = 10; y < WORLD_HEIGHT - 10; y++) {
+                    // Create floating islands using a simplified noise pattern
+                    const noise = Math.sin(x * 0.15 + seed) * Math.cos(y * 0.15 + seed);
+                    if (noise > 0.4) {
+                        let type = 112; // Holystone
+                        const k = `${x},${y}`;
+                        world[k] = type;
+                        
+                        // Surface and Ores
+                        if (Math.sin(x * 0.15 + seed) * Math.cos((y-1) * 0.15 + seed) <= 0.4) {
+                            world[k] = 110; // Aether Grass
+                            if (worldRNG.next() < 0.05) spawnTree(x, y - 1, 'aether');
+                        } else if (Math.sin(x * 0.15 + seed) * Math.cos((y-2) * 0.15 + seed) <= 0.4) {
+                            world[k] = 111; // Aether Dirt
+                        } else {
+                            const r = worldRNG.next();
+                            if (r < 0.05) world[k] = 113; // Ambrosium
+                            else if (r < 0.02) world[k] = 117; // Zanite
+                        }
+                    }
+                }
+            }
+        }
+
         function spawnVillage(centerX) {
             const world = worlds.overworld;
             const vw = 20;
@@ -2163,15 +2218,18 @@
 
         function spawnTree(x, y, dim = 'overworld') {
             const world = worlds[dim];
+            const isAether = dim === 'aether';
+            const logId = isAether ? 115 : 4;
+            const leafId = isAether ? 116 : 5;
             const h = 4 + Math.floor(worldRNG.next() * 2);
             for(let i=0; i<h; i++) {
                 const k = `${x},${y-i}`;
-                if(!world[k] || BLOCK_TYPES[world[k]]?.nonSolid) world[k] = 4;
+                if(!world[k] || BLOCK_TYPES[world[k]]?.nonSolid) world[k] = logId;
             }
             for(let lx=-2; lx<=2; lx++) {
                 for(let ly=-2; ly<=0; ly++) {
                     const k = `${x+lx},${y-h+ly}`;
-                    if(!world[k] && Math.abs(lx) + Math.abs(ly) < 4) world[k] = 5;
+                    if(!world[k] && Math.abs(lx) + Math.abs(ly) < 4) world[k] = leafId;
                 }
             }
         }
@@ -2244,7 +2302,7 @@
         function checkOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
         function takeDamage(amt) { if (player.gameMode === 'creative' || player.invuln > 0 || player.dead) return; player.health -= amt; player.invuln = INVULN_TIME; updateHeartsUI(); if (player.health <= 0) die(); player.vy = -12; }
         function die() { player.dead = true; document.getElementById('death-screen').style.display = 'flex'; saveGame(); }
-        function respawn() { player.health = MAX_HEALTH; player.dead = false; currentDimension = 'overworld'; player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!worlds.overworld[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; player.isFlying = false; updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; saveGame(); mobs.overworld = []; mobs.nether = []; mobs.the_end = []; }
+        function respawn() { player.health = MAX_HEALTH; player.dead = false; currentDimension = 'overworld'; player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!worlds.overworld[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; player.isFlying = false; updateHeartsUI(); updateHUD(); document.getElementById('death-screen').style.display = 'none'; saveGame(); mobs.overworld = []; mobs.nether = []; mobs.the_end = []; mobs.aether = []; }
         window.respawn = respawn;
         function getMiningSpeed() { if (player.gameMode === 'creative') return 9999; const ai = hotbarInventory[activeHotbarIndex]; if (!miningTarget) return 1; const tid = worlds[currentDimension][miningTarget.key]; if (!tid || tid === 6 || tid === 63) return 0; const b = BLOCK_TYPES[tid]; if (b.id === 29) return 0; let s = 1.0; const t = ai ? BLOCK_TYPES[ai.id] : null; if (b.requiredTier && (!t || t.toolType !== b.tool || t.tier < b.requiredTier)) return 0; if (t && t.toolType === b.tool) s = 1.0 + (t.tier * 2.5); else if (b.tool) s = 0.3; return s; }
 
@@ -2320,7 +2378,7 @@
                 if (!id || BLOCK_TYPES[id]?.fluid) continue;
                 
                 // Check unmovable blocks
-                if (id === 29 || id === 60 || id === 90 || id === 103) return null;
+                if (id === 29 || id === 60 || id === 90 || id === 103 || id === 119) return null;
                 
                 visited.add(key);
                 toMove.push({x: cx, y: cy, id: id});
@@ -2553,7 +2611,12 @@
             fluidTimer++; if (fluidTimer >= 5) { fluidTimer = 0; const fk = Object.keys(world).filter(k => BLOCK_TYPES[world[k]]?.fluid); fk.sort((a, b) => b.split(',')[1] - a.split(',')[1]); for (const k of fk) { const [wx, wy] = k.split(',').map(Number); const st = world[k]; const bk = `${wx},${wy+1}`; const tb = world[bk]; let tr = false; const nei = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]]; for (const [nx, ny] of nei) { const nk = `${nx},${ny}`; const nt = world[nk]; if (!nt) continue; if ((st === 63 && nt === 6) || (st === 6 && nt === 63)) { if (st === 63 && nk === bk) { world[nk] = 28; tr = true; break; } else if (st === 6 && k === `${nx},${ny+1}`) { world[k] = 28; tr = true; break; } else { if (st === 63) { delete world[k]; world[k] = 7; } else { delete world[nk]; world[nk] = 7; } tr = true; break; } } } if (tr) continue; if (wy + 1 < WORLD_HEIGHT && (!tb || BLOCK_TYPES[tb]?.fluid)) { if (!tb) { delete world[k]; world[bk] = st; } } else if (wy + 1 < WORLD_HEIGHT) { const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1]; for (let d of dirs) { const sk = `${wx+d},${wy}`; if (wx+d >= 0 && wx+d < WORLD_WIDTH && !world[sk]) { delete world[k]; world[sk] = st; break; } } } } }
             particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE); const py = Math.floor((player.y + player.h/2) / TILE_SIZE); const stand = world[`${px},${py}`];
-            if (stand === 60 || stand === 90) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { if (stand === 60) currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld'; else currentDimension = currentDimension === 'overworld' ? 'the_end' : 'overworld'; teleportTimer = 0; portalOverlay.style.opacity = 0; const tw = worlds[currentDimension]; let found = false; const pb = stand === 60 ? 60 : 90; for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(tw[`${x},${y}`] === pb) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!tw[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; } updateHUD(); saveGame(); } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
+            if (stand === 60 || stand === 90 || stand === 119) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { 
+                if (stand === 60) currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld'; 
+                else if (stand === 90) currentDimension = currentDimension === 'overworld' ? 'the_end' : 'overworld';
+                else if (stand === 119) currentDimension = currentDimension === 'overworld' ? 'aether' : 'overworld';
+                teleportTimer = 0; portalOverlay.style.opacity = 0; const tw = worlds[currentDimension]; let found = false; const pb = (stand === 60 ? 60 : (stand === 90 ? 90 : 119)); for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(tw[`${x},${y}`] === pb) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!tw[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; } updateHUD(); saveGame(); 
+            } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
             if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const tb = world[key]; if (tb && !BLOCK_TYPES[tb].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const b = BLOCK_TYPES[tb]; if (miningProgress >= b.hardness) { if (player.gameMode !== 'creative') { if (b.dropChance !== undefined) { if (Math.random() < b.dropChance) addItemToInventory(b.dropId || b.drop, 1); else if (parseInt(tb) === 57) addItemToInventory(57, 1); } else addItemToInventory(b.drop || parseInt(tb), 1); player.blocksBroken++; updateHUD(); if (player.blocksBroken % 10 === 0) syncLeaderboard(); } delete world[key]; if (blockRotations[currentDimension]) delete blockRotations[currentDimension][key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
             let cs = keys['shift'] ? SPRINT_SPEED : SPEED; if (player.isFlying) cs *= 1.5; const inf = BLOCK_TYPES[world[`${px},${py}`]]?.fluid; const isl = BLOCK_TYPES[world[`${px},${py}`]]?.ladder; if (inf) { cs *= 0.4; if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; if (world[`${px},${py}`] === 6) takeDamage(1.5); }
             if (keys['a'] || keys['arrowleft']) { player.vx -= cs; player.facing = -1; player.animTimer += 0.8; } if (keys['d'] || keys['arrowright']) { player.vx += cs; player.facing = 1; player.animTimer += 0.8; } player.vx *= FRICTION; player.x += player.vx; resolveCollision('x'); if (isl) { player.vy = 4; if (keys['w'] || keys[' '] || keys['arrowup']) player.vy = -7; player.vx *= 0.7; player.grounded = true; } else if (!player.isFlying && !inf) { if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; player.squash = 1.3; } player.vy += GRAVITY; } else if (player.isFlying) { if (keys['w'] || keys[' ']) player.vy = -20; else if (keys['s'] || keys['shift']) player.vy = 20; else player.vy *= 0.5; } player.y += player.vy; player.squash += (1 - player.squash) * 0.45; player.grounded = false; if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y'); camera.x += (player.x - width/2 - camera.x) * 0.35; camera.y += (player.y - height/2 - camera.y) * 0.35; 
@@ -2630,7 +2693,7 @@
                 ctx.strokeRect(tx + size*0.05, ty + size*0.05, size*0.9, size*0.9);
                 ctx.fillStyle = 'rgba(118, 176, 82, 0.5)';
                 ctx.fillRect(tx + size*0.3, ty + size*0.3, size*0.4, size*0.4);
-            } else if (b.animated) { if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`; else if (type === 90) ctx.fillStyle = `rgb(${10 + Math.sin(time)*5}, 0, ${30 + Math.cos(time)*10})`; else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`; else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`; else if (type === 63) ctx.fillStyle = b.color; }
+            } else if (b.animated) { if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`; else if (type === 90) ctx.fillStyle = `rgb(${10 + Math.sin(time)*5}, 0, ${30 + Math.cos(time)*10})`; else if (type === 119) ctx.fillStyle = `rgb(${224 + Math.sin(time)*30}, ${247 + Math.sin(time+1)*10}, ${250})`; else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`; else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`; else if (type === 63) ctx.fillStyle = b.color; }
             
             if (type !== 34 && type !== 107 && type !== 108 && type !== 109) {
                 if (b.texture === 'glass') { ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(tx, ty, size, size); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, size, size); }
@@ -2667,8 +2730,8 @@
                 else { ctx.fillRect(tx, ty, size, size); }
             }
 
-            if (type === 1) { ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, size, 8 * scale); ctx.fillRect(tx, ty + 8*scale, 4*scale, 4*scale); ctx.fillRect(tx+12*scale, ty+8*scale, 8*scale, 4*scale); ctx.fillRect(tx+28*scale, ty+8*scale, 6*scale, 4*scale); } 
-            else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian' || b.texture === 'end_stone') { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(tx+4*scale, ty+4*scale, 8*scale, 8*scale); ctx.fillRect(tx+20*scale, ty+18*scale, 12*scale, 12*scale); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25*scale, ty+5*scale, 6*scale, 6*scale); ctx.fillRect(tx+8*scale, ty+25*scale, 10*scale, 10*scale); }
+            if (type === 1 || type === 110) { ctx.fillStyle = b.topColor; ctx.fillRect(tx, ty, size, 8 * scale); ctx.fillRect(tx, ty + 8*scale, 4*scale, 4*scale); ctx.fillRect(tx+12*scale, ty+8*scale, 8*scale, 4*scale); ctx.fillRect(tx+28*scale, ty+8*scale, 6*scale, 4*scale); } 
+            else if (b.texture === 'stone' || b.texture === 'cobble' || b.texture === 'netherrack' || b.texture === 'obsidian' || b.texture === 'end_stone' || b.texture === 'holystone') { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(tx+4*scale, ty+4*scale, 8*scale, 8*scale); ctx.fillRect(tx+20*scale, ty+18*scale, 12*scale, 12*scale); ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(tx+25*scale, ty+5*scale, 6*scale, 6*scale); ctx.fillRect(tx+8*scale, ty+25*scale, 10*scale, 10*scale); }
             if (b.ore) { ctx.fillStyle = b.ore; ctx.fillRect(tx+6*scale, ty+8*scale, 6*scale, 6*scale); ctx.fillRect(tx+24*scale, ty+14*scale, 8*scale, 8*scale); ctx.fillRect(tx+10*scale, ty+26*scale, 6*scale, 6*scale); }
             if (type === 67) { ctx.fillStyle = '#333'; ctx.fillRect(tx + size*0.1, ty + size*0.1, size*0.8, size*0.3); const f = tileEntities[currentDimension][`${x},${y}`]; if (f && f.burnTime > 0) { ctx.fillStyle = '#ff5722'; ctx.fillRect(tx + size*0.15, ty + size*0.15, size*0.7, size*0.2); } }
             if (type === 11) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx + size/2, ty + size/2, size/2.5, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * scale; ctx.beginPath(); ctx.moveTo(tx + size/2, ty + size/2); const angle = (gameTime / DAY_LENGTH) * Math.PI * 2; ctx.lineTo(tx + size/2 + Math.cos(angle)*10*scale, ty + size/2 + Math.sin(angle)*10*scale); ctx.stroke(); }
@@ -2678,7 +2741,12 @@
             if (miningTarget?.wx === x && miningTarget?.wy === y && scale === 1) { const stage = Math.floor((miningProgress / b.hardness) * 5); if (stage > 0) { ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3; for (let i = 0; i < stage; i++) { ctx.beginPath(); ctx.moveTo(tx+(i*8), ty); ctx.lineTo(tx+TILE_SIZE, ty+TILE_SIZE-(i*8)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(tx, ty+(i*8)); ctx.lineTo(tx+TILE_SIZE-(i*8), ty+TILE_SIZE); ctx.stroke(); } } } ctx.restore();
         }
 
-        function getSkyColor() { if (currentDimension === 'nether') return '#1a0505'; if (currentDimension === 'the_end') return '#0b001a'; const t = gameTime / DAY_LENGTH; if (t < 0.2) return '#ff7043'; if (t < 0.5) return '#4a90e2'; if (t < 0.6) return '#fb8c00'; if (t < 0.9) return '#0a0a20'; return '#2a1a4a'; }
+        function getSkyColor() { 
+            if (currentDimension === 'nether') return '#1a0505'; 
+            if (currentDimension === 'the_end') return '#0b001a'; 
+            if (currentDimension === 'aether') return '#fff9c4'; // Golden sky
+            const t = gameTime / DAY_LENGTH; if (t < 0.2) return '#ff7043'; if (t < 0.5) return '#4a90e2'; if (t < 0.6) return '#fb8c00'; if (t < 0.9) return '#0a0a20'; return '#2a1a4a'; 
+        }
 
         function draw() {
             ctx.fillStyle = getSkyColor(); ctx.fillRect(0, 0, width, height);
