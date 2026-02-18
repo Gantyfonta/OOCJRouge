@@ -1972,7 +1972,7 @@
                 const m = currentMobs[i];
                 if(hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) {
                     const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY);
-                    if(dist < 180) { m.health -= damage; m.vx = (m.x - player.x) > 0 ? knockback : -knockback; m.vy = -5; createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10); if(m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); cm.splice(mi, 1); } return; }
+                    if(dist < 180) { m.health -= damage; m.vx = (m.x - player.x) > 0 ? knockback : -knockback; m.vy = -5; createParticles(m.x + m.w/2, m.y + m.h/2, '#ff0000', 10); if(m.health <= 0) { if(m.loot) addItemToInventory(m.loot, 1); currentMobs.splice(i, 1); } return; }
                 }
             }
         }
@@ -2302,14 +2302,14 @@
         }
 
         // Helper to find a group of connected blocks to move (for Slime Blocks)
-        function findMovableGroup(startX, startY, dx, dy, world) {
+        function findMovableGroup(startX, startY, dx, dy, world, anchorX, anchorY) {
             let toMove = [];
             let visited = new Set();
             let queue = [[startX, startY]];
             
-            // The piston itself is not part of the search, it's the anchor at (startX-dx, startY-dy)
-            const pistonKey = `${startX - dx},${startY - dy}`;
-            visited.add(pistonKey);
+            // The anchor (piston base) shouldn't be part of the group to move
+            const anchorKey = `${anchorX},${anchorY}`;
+            visited.add(anchorKey);
 
             while (queue.length > 0) {
                 let [cx, cy] = queue.shift();
@@ -2422,6 +2422,7 @@
                             const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][dk]) || 0;
                             const fireDirs = [{vx:0, vy:-1}, {vx:1, vy:0}, {vx:0, vy:1}, {vx:-1, vy:0}];
                             const fd = fireDirs[rot];
+                            // Spawn arrow with an offset to avoid self-collision immediately
                             projectiles.push({
                                 x: (wx + 0.5 + fd.vx * 0.6) * TILE_SIZE,
                                 y: (wy + 0.5 + fd.vy * 0.6) * TILE_SIZE,
@@ -2466,14 +2467,13 @@
                     if (isPowered) {
                         // Extend Logic
                         if (world[headPos] !== 103) {
-                            let blocksToMove = findMovableGroup(wx + dir.dx, wy + dir.dy, dir.dx, dir.dy, world);
+                            let blocksToMove = findMovableGroup(wx + dir.dx, wy + dir.dy, dir.dx, dir.dy, world, wx, wy);
                             
                             if (blocksToMove !== null) {
                                 // Move all blocks in the group
                                 // Sort to move from furthest to nearest to avoid overwriting
                                 blocksToMove.sort((a, b) => {
-                                    if (dir.dx !== 0) return (b.x * dir.dx) - (a.x * dir.dx);
-                                    return (b.y * dir.dy) - (a.y * dir.dy);
+                                    return (Math.abs(b.x - wx) + Math.abs(b.y - wy)) - (Math.abs(a.x - wx) + Math.abs(a.y - wy));
                                 });
 
                                 blocksToMove.forEach(b => {
@@ -2499,16 +2499,20 @@
                         // Retract logic
                         if (world[headPos] === 103) {
                             const isSticky = world[pk] === 106;
+                            
+                            // Remove Piston Head always
+                            delete world[headPos];
+                            if (blockRotations[currentDimension]) delete blockRotations[currentDimension][headPos];
+
                             if (isSticky) {
                                 const pullX = wx + dir.dx * 2;
                                 const pullY = wy + dir.dy * 2;
-                                let blocksToMove = findMovableGroup(pullX, pullY, -dir.dx, -dir.dy, world);
+                                let blocksToMove = findMovableGroup(pullX, pullY, -dir.dx, -dir.dy, world, wx, wy);
                                 
                                 if (blocksToMove !== null) {
-                                    // Move all blocks towards the piston
+                                    // Sort by proximity to the piston base ascending (move closest first)
                                     blocksToMove.sort((a, b) => {
-                                        if (dir.dx !== 0) return (a.x * dir.dx) - (b.x * dir.dx);
-                                        return (a.y * dir.dy) - (b.y * dir.dy);
+                                        return (Math.abs(a.x - wx) + Math.abs(a.y - wy)) - (Math.abs(b.x - wx) + Math.abs(b.y - wy));
                                     });
 
                                     blocksToMove.forEach(b => {
@@ -2525,15 +2529,7 @@
                                             delete blockRotations[currentDimension][oldK];
                                         }
                                     });
-                                    delete world[headPos];
-                                    delete blockRotations[currentDimension][headPos];
-                                } else {
-                                    delete world[headPos];
-                                    delete blockRotations[currentDimension][headPos];
                                 }
-                            } else {
-                                delete world[headPos];
-                                delete blockRotations[currentDimension][headPos];
                             }
                             broadcastWorldChange();
                         }
