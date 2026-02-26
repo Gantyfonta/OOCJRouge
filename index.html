@@ -455,6 +455,17 @@
             <div class="btn grey" onclick="closeLeaderboard()">CLOSE</div>
         </div>
 
+        <div id="credits-overlay" style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 300; text-align: center;">
+            <h2 style="font-size: 24px; color: #ffb6c1; margin-bottom: 30px; text-shadow: 4px 4px #c71585;">CREDITS</h2>
+            <div style="font-size: 12px; line-height: 2; color: #fff;">
+                <p>Dev: Gantyfonta</p>
+                <p>Programmer: AI</p>
+                <p>Lead Tester: ReliantFiber28</p>
+                <p>Best Player: ReliantFiber28</p>
+            </div>
+            <div class="btn grey" style="margin-top: 40px;" onclick="document.getElementById('credits-overlay').style.display='none'">CLOSE</div>
+        </div>
+
         <div id="pause-menu">
             <h2 style="font-size: 24px; color: #fff; margin-bottom: 30px; text-shadow: 4px 4px #000;">GAME PAUSED</h2>
             <div class="btn" onclick="togglePauseMenu()">RESUME</div>
@@ -822,7 +833,8 @@
             170: { name: 'Carrot', color: '#ff9800', stroke: '#e65100', item: true, type: 'food', heal: 3 },
             171: { name: 'Carrot Crop', color: '#4caf50', stroke: '#2e7d32', hardness: 5, nonSolid: true, crop: true, drop: 170 },
             172: { name: 'Time Setter', color: '#9c27b0', stroke: '#4a148c', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 4, y: 4} },
-            173: { name: 'Breaker', color: '#616161', stroke: '#212121', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 5, y: 4} }
+            173: { name: 'Breaker', color: '#616161', stroke: '#212121', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 5, y: 4} },
+            174: { name: 'Observer', color: '#424242', stroke: '#212121', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 6, y: 4} }
         };
 
         const MOB_TYPES = {
@@ -949,7 +961,8 @@
             { pattern: [[164]], result: 95, amount: 9 },
             // New Blocks
             { pattern: [[34, 11, 34]], result: 172, amount: 1 }, // Time Setter
-            { pattern: [[31, 31, 31], [7, 101, 7]], result: 173, amount: 1 } // Breaker
+            { pattern: [[31, 31, 31], [7, 101, 7]], result: 173, amount: 1 }, // Breaker
+            { pattern: [[7, 7, 7], [34, 34, 31], [7, 7, 7]], result: 174, amount: 1 } // Observer
         ];
 
         const SMELTING_RECIPES = {
@@ -1065,6 +1078,7 @@
         let lastTimestamp = 0;
         let tickAccumulator = 0;
 
+        let creditsBuffer = "";
         function init() {
             loadTextures();
             resize();
@@ -1082,7 +1096,18 @@
             window.addEventListener('resize', resize);
             window.addEventListener('keydown', e => {
                 const key = e.key.toLowerCase();
-                if (!gameStarted) { keys[key] = true; return; }
+                if (!gameStarted) {
+                    if (key.length === 1) {
+                        creditsBuffer += key;
+                        if (creditsBuffer.endsWith("credits")) {
+                            document.getElementById('credits-overlay').style.display = 'flex';
+                            creditsBuffer = "";
+                        }
+                        if (creditsBuffer.length > 20) creditsBuffer = creditsBuffer.slice(-10);
+                    }
+                    keys[key] = true; 
+                    return; 
+                }
                 if (e.key === 'Escape') { if (inventoryOpen) toggleInventory(); else togglePauseMenu(); }
                 if (!isPaused) {
                     if (key === 'e') toggleInventory();
@@ -2632,6 +2657,23 @@
                         const [x, y] = key.split(',').map(Number);
                         queue.push({x, y, p: 15});
                     }
+                } else if (id === 174) {
+                    if (!entities[key]) entities[key] = { lastObservedId: 0, pulseTimer: 0 };
+                    const ent = entities[key];
+                    const [wx, wy] = key.split(',').map(Number);
+                    const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][key]) || 0;
+                    const dirs = [{dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0}];
+                    const dir = dirs[rot];
+                    const targetPos = `${wx + dir.dx},${wy + dir.dy}`;
+                    const targetId = world[targetPos] || 0;
+                    if (targetId !== ent.lastObservedId) {
+                        ent.pulseTimer = 2;
+                        ent.lastObservedId = targetId;
+                    }
+                    if (ent.pulseTimer > 0) {
+                        ent.pulseTimer--;
+                        queue.push({x: wx, y: wy, p: 15});
+                    }
                 }
             }
             while (queue.length > 0) {
@@ -2779,6 +2821,7 @@
                         const nk = `${nx},${ny}`;
                         if (world[nk] === 102) { isPowered = true; break; } 
                         if ((world[nk] === 105 || world[nk] === 107) && det[nk]?.active) { isPowered = true; break; }
+                        if (world[nk] === 174 && det[nk]?.pulseTimer > 0) { isPowered = true; break; }
                         if (world[nk] === 34 && det[nk]?.power > 0) { isPowered = true; break; }
                     }
                     if (isPowered && !ent.powered) {
@@ -2811,6 +2854,7 @@
                         const nk = `${nx},${ny}`;
                         if (world[nk] === 102) { isPowered = true; break; } 
                         if ((world[nk] === 105 || world[nk] === 107) && det[nk]?.active) { isPowered = true; break; }
+                        if (world[nk] === 174 && det[nk]?.pulseTimer > 0) { isPowered = true; break; }
                         if (world[nk] === 34 && det[nk]?.power > 0) { isPowered = true; break; }
                     }
                     const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][pk]) || 0;
@@ -2860,6 +2904,7 @@
                         const nk = `${nx},${ny}`;
                         if (world[nk] === 102) { isPowered = true; break; }
                         if ((world[nk] === 105 || world[nk] === 107) && det[nk]?.active) { isPowered = true; break; }
+                        if (world[nk] === 174 && det[nk]?.pulseTimer > 0) { isPowered = true; break; }
                         if (world[nk] === 34 && det[nk]?.power > 0) { isPowered = true; break; }
                     }
                     if (isPowered && !ent.powered) {
@@ -2879,6 +2924,7 @@
                         const nk = `${nx},${ny}`;
                         if (world[nk] === 102) { isPowered = true; break; }
                         if ((world[nk] === 105 || world[nk] === 107) && det[nk]?.active) { isPowered = true; break; }
+                        if (world[nk] === 174 && det[nk]?.pulseTimer > 0) { isPowered = true; break; }
                         if (world[nk] === 34 && det[nk]?.power > 0) { isPowered = true; break; }
                     }
                     if (isPowered && !ent.powered) {
