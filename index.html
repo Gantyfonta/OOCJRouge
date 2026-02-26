@@ -448,7 +448,11 @@
         </div>
 
         <div id="leaderboard-overlay">
-            <h2 style="font-size: 18px; color: #fff; margin-bottom: 10px; text-shadow: 4px 4px #000;">TOP BLOCK BREAKERS</h2>
+            <h2 id="leaderboard-title" style="font-size: 18px; color: #fff; margin-bottom: 10px; text-shadow: 4px 4px #000;">TOP BLOCK BREAKERS</h2>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="btn-mini" onclick="switchLeaderboard('blocks')">BLOCKS</button>
+                <button class="btn-mini" onclick="switchLeaderboard('crafting')">CRAFTING</button>
+            </div>
             <div id="leaderboard-list">
                 <div class="leaderboard-entry"><span class="leaderboard-name">Loading...</span></div>
             </div>
@@ -834,7 +838,15 @@
             171: { name: 'Carrot Crop', color: '#4caf50', stroke: '#2e7d32', hardness: 5, nonSolid: true, crop: true, drop: 170 },
             172: { name: 'Time Setter', color: '#9c27b0', stroke: '#4a148c', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 4, y: 4} },
             173: { name: 'Breaker', color: '#616161', stroke: '#212121', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 5, y: 4} },
-            174: { name: 'Observer', color: '#424242', stroke: '#212121', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 6, y: 4} }
+            174: { name: 'Observer', color: '#424242', stroke: '#212121', hardness: 50, tool: 'pickaxe', requiredTier: 2, texPos: {x: 6, y: 4} },
+            190: { name: 'Mystic Grass', color: '#9c27b0', stroke: '#4a148c', hardness: 10, tool: 'shovel', topColor: '#e1bee7', texPos: {x: 0, y: 5} },
+            191: { name: 'Mystic Dirt', color: '#4a148c', stroke: '#311b92', hardness: 12, tool: 'shovel', texPos: {x: 1, y: 5} },
+            192: { name: 'Mystic Stone', color: '#311b92', stroke: '#1a237e', hardness: 60, tool: 'pickaxe', texture: 'stone', requiredTier: 2, texPos: {x: 2, y: 5} },
+            193: { name: 'Mystic Log', color: '#1a237e', stroke: '#0d47a1', hardness: 35, tool: 'axe', texPos: {x: 3, y: 5} },
+            194: { name: 'Mystic Leaves', color: '#e1bee7', stroke: '#ba68c8', hardness: 5, texPos: {x: 4, y: 5} },
+            195: { name: 'Mystic Portal', color: '#ba68c8', stroke: '#9c27b0', hardness: 999, animated: true, teleport: true, toDimension: 'mystic', texPos: {x: 5, y: 5} },
+            196: { name: 'Magic Wand', color: '#f1c40f', stroke: '#9c27b0', item: true, toolType: 'wand' },
+            197: { name: 'Mana Shard', color: '#00e5ff', item: true, type: 'gem' }
         };
 
         const MOB_TYPES = {
@@ -846,7 +858,9 @@
             'villager': { health: 20, speed: 2, behavior: 'wander', w: 24, h: 48, damage: 0, color: '#e1a692', stroke: '#8d6e63', hostile: false, tradeable: true },
             'sheep': { health: 8, speed: 2, behavior: 'wander', w: 34, h: 28, damage: 0, loot: 125, color: '#fff', stroke: '#ccc', hostile: false },
             'cow': { health: 10, speed: 2, behavior: 'wander', w: 36, h: 32, damage: 0, loot: 125, color: '#795548', stroke: '#3e2723', hostile: false },
-            'enderman': { health: 40, speed: 4, behavior: 'chase', w: 24, h: 64, damage: 5, loot: 95, color: '#1a1a1a', stroke: '#000', hostile: true }
+            'enderman': { health: 40, speed: 4, behavior: 'chase', w: 24, h: 64, damage: 5, loot: 95, color: '#1a1a1a', stroke: '#000', hostile: true },
+            'wisp': { health: 5, speed: 4, behavior: 'wander', w: 16, h: 16, damage: 0, loot: 197, color: '#00e5ff', stroke: '#fff', hostile: false, floating: true },
+            'mage': { health: 30, speed: 2, behavior: 'chase', w: 24, h: 48, damage: 0, loot: 196, color: '#4a148c', stroke: '#9c27b0', hostile: true, ranged: true }
         };
 
         const VILLAGER_TRADES = [
@@ -959,6 +973,7 @@
             { pattern: [[162]], result: 33, amount: 9 },
             { pattern: [[163]], result: 118, amount: 9 },
             { pattern: [[164]], result: 95, amount: 9 },
+            { pattern: [[197], [197], [15]], result: 196, amount: 1 }, // Magic Wand
             // New Blocks
             { pattern: [[34, 11, 34]], result: 172, amount: 1 }, // Time Setter
             { pattern: [[31, 31, 31], [7, 101, 7]], result: 173, amount: 1 }, // Breaker
@@ -1003,10 +1018,10 @@
         let camera = { x: 0, y: 0 };
         let gameTime = 6000; 
         let currentDimension = 'overworld';
-        let worlds = { overworld: {}, nether: {}, the_end: {}, aether: {} };
-        let blockRotations = { overworld: {}, nether: {}, the_end: {}, aether: {} };
-        let tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {} };
-        let mobs = { overworld: [], nether: [], the_end: [], aether: [] };
+        let worlds = { overworld: {}, nether: {}, the_end: {}, aether: {}, mystic: {} };
+        let blockRotations = { overworld: {}, nether: {}, the_end: {}, aether: {}, mystic: {} };
+        let tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {}, mystic: {} };
+        let mobs = { overworld: [], nether: [], the_end: [], aether: [], mystic: [] };
         let projectiles = [];
         let teleportTimer = 0;
         let activeSaveSlot = null;
@@ -1044,6 +1059,7 @@
             fishing: { active: false, x: 0, y: 0, vx: 0, vy: 0, state: 'idle', timer: 0, biteTimer: 0 },
             bowCharge: 0,
             blocksBroken: 0,
+            itemsCrafted: 0,
             hasPickedUpCarrot: false,
             armor: [null, null, null, null] // helmet, chestplate, leggings, boots
         };
@@ -1376,18 +1392,33 @@
         }
 
         // Leaderboard Logic
+        let currentLeaderboardTab = 'blocks';
         function syncLeaderboard() {
             if (!window.m_db || !player.name) return;
             const { ref, set } = window.m_refs;
             const leaderboardRef = ref(window.m_db, `leaderboard/${player.name}`);
-            set(leaderboardRef, { name: player.name, score: player.blocksBroken });
+            set(leaderboardRef, { 
+                name: player.name, 
+                score: player.blocksBroken,
+                crafted: player.itemsCrafted || 0
+            });
         }
+
+        function switchLeaderboard(tab) {
+            currentLeaderboardTab = tab;
+            const title = document.getElementById('leaderboard-title');
+            title.innerText = tab === 'blocks' ? 'TOP BLOCK BREAKERS' : 'TOP ITEM CRAFTERS';
+            showLeaderboard();
+        }
+        window.switchLeaderboard = switchLeaderboard;
 
         function showLeaderboard() {
             leaderboardOverlay.style.display = 'flex';
             const { ref, query, orderByChild, limitToLast, onValue } = window.m_refs;
             const leaderboardRef = ref(window.m_db, 'leaderboard');
-            const q = query(leaderboardRef, orderByChild('score'), limitToLast(10));
+            
+            const sortField = currentLeaderboardTab === 'blocks' ? 'score' : 'crafted';
+            const q = query(leaderboardRef, orderByChild(sortField), limitToLast(10));
             
             onValue(q, (snapshot) => {
                 const data = snapshot.val();
@@ -1397,18 +1428,20 @@
                     listEl.innerHTML = '<div class="leaderboard-entry"><span class="leaderboard-name">No entries yet!</span></div>';
                     return;
                 }
-                const sorted = Object.values(data).sort((a, b) => b.score - a.score);
+                const sorted = Object.values(data).sort((a, b) => (b[sortField] || 0) - (a[sortField] || 0));
                 sorted.forEach((entry, idx) => {
                     const div = document.createElement('div');
                     div.className = 'leaderboard-entry';
+                    const value = entry[sortField] || 0;
+                    const unit = currentLeaderboardTab === 'blocks' ? 'BLOCKS' : 'ITEMS';
                     div.innerHTML = `
                         <span class="leaderboard-rank">#${idx + 1}</span>
                         <span class="leaderboard-name">${entry.name}</span>
-                        <span class="leaderboard-score">${entry.score} BLOCKS</span>
+                        <span class="leaderboard-score">${value} ${unit}</span>
                     `;
                     listEl.appendChild(div);
                 });
-            });
+            }, { onlyOnce: true });
         }
         window.showLeaderboard = showLeaderboard;
 
@@ -1498,7 +1531,7 @@
                 blockRotations,
                 tileEntities,
                 mobs,
-                player: { x: player.x, y: player.y, health: player.health, dimension: currentDimension, gameMode: player.gameMode, blocksBroken: player.blocksBroken },
+                player: { x: player.x, y: player.y, health: player.health, dimension: currentDimension, gameMode: player.gameMode, blocksBroken: player.blocksBroken, itemsCrafted: player.itemsCrafted || 0 },
                 inventory: { main: mainInventory, hotbar: hotbarInventory },
                 gameTime: gameTime,
                 seed: currentSeedDisplay,
@@ -1517,6 +1550,7 @@
             player.x = data.player.x; player.y = data.player.y;
             player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
             player.blocksBroken = data.player.blocksBroken || 0;
+            player.itemsCrafted = data.player.itemsCrafted || 0;
             currentDimension = data.player.dimension || 'overworld';
             mainInventory = data.inventory.main; hotbarInventory = data.inventory.hotbar;
             gameTime = data.gameTime || 6000;
@@ -1536,7 +1570,7 @@
                 tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {} };
                 mobs = { overworld: [], nether: [], the_end: [], aether: [] };
                 gameTime = 6000;
-                generateOverworld(); generateNether(); generateEnd(); generateAether();
+                generateOverworld(); generateNether(); generateEnd(); generateAether(); generateMystic();
             }
             mainInventory = new Array(27).fill(null); hotbarInventory = new Array(9).fill(null);
             
@@ -1547,6 +1581,7 @@
             player.x = startX * TILE_SIZE; player.y = (startY - 2) * TILE_SIZE;
             player.health = MAX_HEALTH; player.gameMode = mode;
             player.blocksBroken = 0;
+            player.itemsCrafted = 0;
             currentDimension = 'overworld'; updateHUD(); updateHeartsUI(); if (!fromJoin) saveGame(); 
         }
 
@@ -1799,6 +1834,10 @@
                 }
                 if (!heldItem) heldItem = { ...craftingOutput };
                 else heldItem.count += craftingOutput.count;
+                
+                player.itemsCrafted += craftingOutput.count;
+                if (player.itemsCrafted % 5 === 0) syncLeaderboard();
+                
                 renderInventory();
                 updateHeldItemCursor();
             }
@@ -2217,6 +2256,11 @@
             const currentMobs = mobs[currentDimension];
             for (let m of currentMobs) { if (hitX >= m.x && hitX <= m.x + m.w && hitY >= m.y && hitY <= m.y + m.h) { const dist = Math.hypot(player.x + player.w/2 - hitX, player.y + player.h/2 - hitY); if (dist < 120) { if (m.tradeable) { activeVillager = m; toggleInventory(false, null, null, m); return; } if (m.type === 'piglin' && activeItem?.id === 32) { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; const barterLoots = [28, 52, 58, 31, 51, 91]; const won = barterLoots[Math.floor(Math.random() * barterLoots.length)]; addItemToInventory(won, Math.floor(Math.random() * 2) + 1); updateHUD(); return; } } } }
             if (activeItem?.id === 71) { if (!player.fishing.active) { player.fishing.active = true; player.fishing.x = player.x + player.w/2; player.fishing.y = player.y + player.h/2; player.fishing.vx = (player.facing * 12); player.fishing.vy = -10; player.fishing.state = 'casting'; player.fishing.timer = 0; } else { if (player.fishing.state === 'bite') { const roll = Math.random(); let loot = 72; if (roll < 0.1) loot = 32; else if (roll < 0.2) loot = 15; else if (roll < 0.3) loot = 34; addItemToInventory(loot, 1); } player.fishing.active = false; } return; }
+            if (activeItem?.id === 196) { 
+                const angle = Math.atan2(mouse.y + camera.y - (player.y + player.h/2), mouse.x + camera.x - (player.x + player.w/2));
+                projectiles.push({ x: player.x + player.w/2, y: player.y + player.h/2, vx: Math.cos(angle)*15, vy: Math.sin(angle)*15, life: 100, color: '#00e5ff', type: 'spell', damage: 10 });
+                return;
+            }
             const blockData = BLOCK_TYPES[activeItem?.id]; if (blockData?.type === 'food') { player.health = Math.min(MAX_HEALTH, player.health + (blockData.heal || 2)); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; updateHeartsUI(); updateHUD(); return; }
             const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`;
             
@@ -2274,6 +2318,7 @@
                 }
                 if (activeItem && activeItem.id === 66) { if (!world[key] || BLOCK_TYPES[world[key]]?.fluid) { world[key] = 6; if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; addItemToInventory(64, 1); } updateHUD(); broadcastWorldChange(); return; } } 
                 if (activeItem && activeItem.id === 59 && world[key] === 28) { tryIgnitePortal(wx, wy); return; } 
+                if (activeItem && activeItem.id === 197 && world[key] === 164) { tryIgniteMysticPortal(wx, wy); return; }
                 if (activeItem && (!world[key] || BLOCK_TYPES[world[key]]?.fluid) && !BLOCK_TYPES[activeItem.id].item) { const btp = BLOCK_TYPES[activeItem.id]; if (activeItem.id === 93) { const below = world[`${wx},${wy+1}`]; if (below !== 1 && below !== 2) return; } const rect = { x: wx * TILE_SIZE, y: wy * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE }; if (btp.nonSolid || !checkOverlap(player, rect)) { world[key] = activeItem.id; if (activeItem.id === 93) { tileEntities[currentDimension][key] = { type: 'sapling', timer: 30 * TICKS_PER_SECOND }; } if (player.gameMode !== 'creative') { activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; } updateHUD(); broadcastWorldChange(); } } 
             }
         }
@@ -2283,8 +2328,8 @@
         function updateMobs() {
             if (isLanClient) return; const currentMobs = mobs[currentDimension]; const world = worlds[currentDimension]; const isNight = gameTime > 13000 && gameTime < 23000; const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
             if (currentDimension === 'the_end') { const hasBoss = currentMobs.some(m => m.type === 'chrono_dragon'); if (!hasBoss && Math.random() < 0.01) spawnMob('chrono_dragon', (WORLD_WIDTH/2)*TILE_SIZE, (WORLD_HEIGHT/2 - 10)*TILE_SIZE); }
-            if (currentMobs.length < 15 && Math.random() < spawnChance) { const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400); const sx = Math.floor(spawnX / TILE_SIZE); if (sx >= 0 && sx < WORLD_WIDTH) { let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; if (sy < WORLD_HEIGHT) { let types = []; if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } else if (currentDimension === 'nether') { types = ['zombie_pig', 'piglin']; } if (types.length > 0) spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } } }
-            let bossFound = null; for(let i = currentMobs.length - 1; i >= 0; i--) { const m = currentMobs[i]; const dx = player.x - m.x; const dy = player.y - m.y; const dist = Math.hypot(dx, dy); if (dist > 2000 && m.type !== 'chrono_dragon') { currentMobs.splice(i, 1); continue; } if (m.type === 'chrono_dragon') { bossFound = m; m.timer++; if (m.state === 'idle') { const targetX = (WORLD_WIDTH/2) * TILE_SIZE + Math.cos(m.timer*0.02) * 400; const targetY = (WORLD_HEIGHT/2 - 12) * TILE_SIZE + Math.sin(m.timer*0.05) * 200; m.vx += (targetX - m.x) * 0.01; m.vy += (targetY - m.y) * 0.01; if (m.timer % 100 === 0) m.state = Math.random() < 0.5 ? 'swoop' : 'fire'; } else if (m.state === 'swoop') { m.vx += (player.x - m.x) * 0.04; m.vy += (player.y - m.y) * 0.04; if (dist < 40) { takeDamage(2); m.state = 'idle'; m.timer = 0; m.vy = -15; } if (m.timer > 160) { m.state = 'idle'; m.timer = 0; } } else if (m.state === 'fire') { m.vx *= 0.9; m.vy *= 0.9; if (m.timer % 20 === 0) { const angle = Math.atan2(dy, dx); projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, life: 100, color: '#f1c40f', type: 'enemy' }); } if (m.timer > 100) { m.state = 'idle'; m.timer = 0; } } m.vx *= 0.95; m.vy *= 0.95; m.x += m.vx; m.y += m.vy; m.facing = m.vx > 0 ? 1 : -1; } else { if (m.behavior === 'chase' || m.behavior === 'explode') { if (dist < 400) { m.vx += (dx > 0 ? 1 : -1) * 0.5; m.facing = dx > 0 ? 1 : -1; if (dist < 100 && Math.random() < 0.1 && m.grounded) m.vy = -12; } else { m.vx *= 0.8; } } else if (m.behavior === 'wander') { if (Math.random() < 0.02) m.vx = (Math.random()-0.5) * 10; if (Math.random() < 0.01 && m.grounded) m.vy = -12; } if (m.behavior === 'explode' && dist < 60) { m.fuse++; if (m.fuse >= 40) { const explodeDist = Math.hypot(player.x - m.x, player.y - m.y); if(explodeDist < 120) takeDamage(3); currentMobs.splice(i, 1); continue; } } else { m.fuse = Math.max(0, m.fuse - 1); } if (m.damage > 0 && dist < 40 && player.invuln <= 0) takeDamage(m.damage); m.vx *= 0.8; m.vy += GRAVITY; m.x += m.vx; resolveEntityCollision(m, 'x'); m.y += m.vy; m.grounded = false; resolveEntityCollision(m, 'y'); m.animTimer += Math.abs(m.vx) * 0.1; } }
+            if (currentMobs.length < 15 && Math.random() < spawnChance) { const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400); const sx = Math.floor(spawnX / TILE_SIZE); if (sx >= 0 && sx < WORLD_WIDTH) { let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; if (sy < WORLD_HEIGHT) { let types = []; if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } else if (currentDimension === 'nether') { types = ['zombie_pig', 'piglin']; } else if (currentDimension === 'mystic') { types = ['wisp', 'mage']; } if (types.length > 0) spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } } }
+            let bossFound = null; for(let i = currentMobs.length - 1; i >= 0; i--) { const m = currentMobs[i]; const dx = player.x - m.x; const dy = player.y - m.y; const dist = Math.hypot(dx, dy); if (dist > 2000 && m.type !== 'chrono_dragon') { currentMobs.splice(i, 1); continue; } if (m.type === 'chrono_dragon') { bossFound = m; m.timer++; if (m.state === 'idle') { const targetX = (WORLD_WIDTH/2) * TILE_SIZE + Math.cos(m.timer*0.02) * 400; const targetY = (WORLD_HEIGHT/2 - 12) * TILE_SIZE + Math.sin(m.timer*0.05) * 200; m.vx += (targetX - m.x) * 0.01; m.vy += (targetY - m.y) * 0.01; if (m.timer % 100 === 0) m.state = Math.random() < 0.5 ? 'swoop' : 'fire'; } else if (m.state === 'swoop') { m.vx += (player.x - m.x) * 0.04; m.vy += (player.y - m.y) * 0.04; if (dist < 40) { takeDamage(2); m.state = 'idle'; m.timer = 0; m.vy = -15; } if (m.timer > 160) { m.state = 'idle'; m.timer = 0; } } else if (m.state === 'fire') { m.vx *= 0.9; m.vy *= 0.9; if (m.timer % 20 === 0) { const angle = Math.atan2(dy, dx); projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, life: 100, color: '#f1c40f', type: 'enemy' }); } if (m.timer > 100) { m.state = 'idle'; m.timer = 0; } } m.vx *= 0.95; m.vy *= 0.95; m.x += m.vx; m.y += m.vy; m.facing = m.vx > 0 ? 1 : -1; } else { if (m.behavior === 'chase' || m.behavior === 'explode') { if (dist < 400) { m.vx += (dx > 0 ? 1 : -1) * 0.5; m.facing = dx > 0 ? 1 : -1; if (dist < 100 && Math.random() < 0.1 && m.grounded) m.vy = -12; if (m.ranged && dist < 300 && m.timer % 60 === 0) { const angle = Math.atan2(dy, dx); projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, life: 100, color: '#9c27b0', type: 'enemy' }); } } else { m.vx *= 0.8; } } else if (m.behavior === 'wander') { if (Math.random() < 0.02) m.vx = (Math.random()-0.5) * 10; if (Math.random() < 0.01 && m.grounded) m.vy = -12; } if (m.behavior === 'explode' && dist < 60) { m.fuse++; if (m.fuse >= 40) { const explodeDist = Math.hypot(player.x - m.x, player.y - m.y); if(explodeDist < 120) takeDamage(3); currentMobs.splice(i, 1); continue; } } else { m.fuse = Math.max(0, m.fuse - 1); } if (m.damage > 0 && dist < 40 && player.invuln <= 0) takeDamage(m.damage); m.vx *= 0.8; m.vy += GRAVITY; m.x += m.vx; resolveEntityCollision(m, 'x'); m.y += m.vy; m.grounded = false; resolveEntityCollision(m, 'y'); m.animTimer += Math.abs(m.vx) * 0.1; m.timer++; } }
             if (bossFound) { bossHealthContainer.style.display = 'flex'; bossHealthFill.style.width = (bossFound.health / bossFound.maxHealth) * 100 + '%'; } else { bossHealthContainer.style.display = 'none'; }
         }
 
@@ -2293,6 +2338,23 @@
         function tryIgnitePortal(wx, wy) { const world = worlds[currentDimension]; for(let sx = wx - 4; sx <= wx + 4; sx++) { for(let sy = wy - 5; sy <= wy + 5; sy++) { if(world[`${sx},${sy}`] === 28 && world[`${sx+3},${sy}`] === 28) { let isFrame = true; for(let x=0; x<4; x++) if(world[`${sx+x},${sy}`] !== 28 || world[`${sx+x},${sy+4}`] !== 28) isFrame = false; for(let y=0; y<5; y++) if(world[`${sx},${sy+y}`] !== 28 || world[`${sx+3},${sy+y}`] !== 28) isFrame = false; if(isFrame) { for(let x=1; x<=2; x++) for(let y=1; y<=3; y++) world[`${sx+x},${sy+y}`] = 60; broadcastWorldChange(); return; } } } } }
 
         function tryIgniteAetherPortal(wx, wy) { const world = worlds[currentDimension]; for(let sx = wx - 4; sx <= wx + 4; sx++) { for(let sy = wy - 5; sy <= wy + 5; sy++) { if(world[`${sx},${sy}`] === 52 && world[`${sx+3},${sy}`] === 52) { let isFrame = true; for(let x=0; x<4; x++) if(world[`${sx+x},${sy}`] !== 52 || world[`${sx+x},${sy+4}`] !== 52) isFrame = false; for(let y=0; y<5; y++) if(world[`${sx},${sy+y}`] !== 52 || world[`${sx+3},${sy+y}`] !== 52) isFrame = false; if(isFrame) { for(let x=1; x<=2; x++) for(let y=1; y<=3; y++) world[`${sx+x},${sy+y}`] = 119; broadcastWorldChange(); return; } } } } }
+
+        function tryIgniteMysticPortal(wx, wy) { 
+            const world = worlds[currentDimension]; 
+            for(let sx = wx - 4; sx <= wx + 4; sx++) { 
+                for(let sy = wy - 5; sy <= wy + 5; sy++) { 
+                    if(world[`${sx},${sy}`] === 164 && world[`${sx+3},${sy}`] === 164) { 
+                        let isFrame = true; 
+                        for(let x=0; x<4; x++) if(world[`${sx+x},${sy}`] !== 164 || world[`${sx+x},${sy+4}`] !== 164) isFrame = false; 
+                        for(let y=0; y<5; y++) if(world[`${sx},${sy+y}`] !== 164 || world[`${sx+3},${sy+y}`] !== 164) isFrame = false; 
+                        if(isFrame) { 
+                            for(let x=1; x<=2; x++) for(let y=1; y<=3; y++) world[`${sx+x},${sy+y}`] = 195; 
+                            broadcastWorldChange(); return; 
+                        } 
+                    } 
+                } 
+            } 
+        }
 
         function updateHUD() { 
             const hud = document.getElementById('hotbar-hud'); 
@@ -2308,8 +2370,9 @@
             if (currentDimension === 'nether') dimName = "The Nether"; 
             else if (currentDimension === 'the_end') dimName = "The End"; 
             else if (currentDimension === 'aether') dimName = "The Aether"; 
+            else if (currentDimension === 'mystic') dimName = "The Mystic Grove"; 
             document.getElementById('dim-indicator').innerText = dimName; 
-            document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : (currentDimension === 'nether' ? '#ff4d4d' : (currentDimension === 'aether' ? '#f1c40f' : '#9c27b0')); 
+            document.getElementById('dim-indicator').style.color = currentDimension === 'overworld' ? '#ffb6c1' : (currentDimension === 'nether' ? '#ff4d4d' : (currentDimension === 'aether' ? '#f1c40f' : (currentDimension === 'mystic' ? '#ba68c8' : '#9c27b0'))); 
             heartsContainer.style.display = player.gameMode === 'creative' ? 'none' : 'flex'; 
             document.getElementById('blocks-broken-hud').innerText = `BLOCKS BROKEN: ${player.blocksBroken}`; 
             updateDefenseUI();
@@ -2394,6 +2457,26 @@
             world[`${portalX},${portalY}`] = 90;
         }
 
+        function generateMystic() {
+            const world = worlds.mystic;
+            const seed = worldRNG.next() * 8000;
+            for (let x = 0; x < WORLD_WIDTH; x++) {
+                const groundHeight = 40 + Math.floor(Math.sin(x * 0.1 + seed) * 10);
+                for (let y = groundHeight; y < WORLD_HEIGHT; y++) {
+                    const k = `${x},${y}`;
+                    if (y === groundHeight) {
+                        world[k] = 190;
+                        if (worldRNG.next() < 0.08) spawnTree(x, y - 1, 'mystic');
+                    } else if (y < groundHeight + 4) {
+                        world[k] = 191;
+                    } else {
+                        world[k] = 192;
+                        if (worldRNG.next() < 0.02) world[k] = 113;
+                    }
+                }
+            }
+        }
+
         function generateAether() {
             const world = worlds.aether;
             const seed = worldRNG.next() * 5000;
@@ -2459,9 +2542,9 @@
 
         function spawnTree(x, y, dim = 'overworld') {
             const world = worlds[dim];
-            const isAether = dim === 'aether';
-            const logId = isAether ? 115 : 4;
-            const leafId = isAether ? 116 : 5;
+            let logId = 4, leafId = 5;
+            if (dim === 'aether') { logId = 115; leafId = 116; }
+            if (dim === 'mystic') { logId = 193; leafId = 194; }
             const h = 4 + Math.floor(worldRNG.next() * 2);
             for(let i=0; i<h; i++) {
                 const k = `${x},${y-i}`;
@@ -2725,11 +2808,12 @@
             const world = worlds[currentDimension]; 
             if (!isLanClient) { 
                 updateMobs(); 
-                if (currentDimension === 'overworld' && !player.hasPickedUpCarrot && Math.random() < 0.02) {
-                    const rx = Math.floor(player.x / TILE_SIZE) + Math.floor((Math.random() - 0.5) * 60);
-                    const ry = Math.floor(player.y / TILE_SIZE) - 20;
+                const hasFallingCarrot = projectiles.some(p => p.type === 'falling_carrot');
+                if (currentDimension === 'overworld' && !player.hasPickedUpCarrot && !hasFallingCarrot && Math.random() < 0.005) {
+                    const rx = Math.floor(player.x / TILE_SIZE) + Math.floor((Math.random() - 0.5) * 40);
+                    const ry = Math.floor(player.y / TILE_SIZE) - 40;
                     if (rx >= 0 && rx < WORLD_WIDTH) {
-                        projectiles.push({ x: rx * TILE_SIZE, y: ry * TILE_SIZE, vx: 0, vy: 5, life: 600, color: '#ff9800', type: 'falling_carrot', id: 170 });
+                        projectiles.push({ x: rx * TILE_SIZE, y: ry * TILE_SIZE, vx: 0, vy: 3, life: 1200, color: '#ff9800', type: 'falling_carrot', id: 170 });
                     }
                 }
                 for (let i = projectiles.length - 1; i >= 0; i--) { 
@@ -2748,7 +2832,7 @@
                         if (Math.hypot(p.x - (player.x + player.w/2), p.y - (player.y + player.h/2)) < 30) { 
                             takeDamage(1); projectiles.splice(i, 1); continue; 
                         } 
-                    } else if (p.type === 'player_arrow') { 
+                    } else if (p.type === 'player_arrow' || p.type === 'spell') { 
                         const cm = mobs[currentDimension]; let hit = false; 
                         for (let mi = cm.length - 1; mi >= 0; mi--) { 
                             const m = cm[mi]; 
@@ -2948,11 +3032,12 @@
             fluidTimer++; if (fluidTimer >= 5) { fluidTimer = 0; const fk = Object.keys(world).filter(k => BLOCK_TYPES[world[k]]?.fluid); fk.sort((a, b) => b.split(',')[1] - a.split(',')[1]); for (const k of fk) { const [wx, wy] = k.split(',').map(Number); const st = world[k]; const bk = `${wx},${wy+1}`; const tb = world[bk]; if (wy + 1 < WORLD_HEIGHT && (!tb || BLOCK_TYPES[tb]?.fluid)) { if (!tb) { delete world[k]; world[bk] = st; } } else if (wy + 1 < WORLD_HEIGHT) { const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1]; for (let d of dirs) { const sk = `${wx+d},${wy}`; if (wx+d >= 0 && wx+d < WORLD_WIDTH && !world[sk]) { delete world[k]; world[sk] = st; break; } } } } }
             particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life--; return p.life > 0; });
             const px = Math.floor((player.x + player.w/2) / TILE_SIZE); const py = Math.floor((player.y + player.h/2) / TILE_SIZE); const stand = world[`${px},${py}`];
-            if (stand === 60 || stand === 90 || stand === 119) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { 
+            if (stand === 60 || stand === 90 || stand === 119 || stand === 195) { teleportTimer++; portalOverlay.style.opacity = teleportTimer / 20; if (teleportTimer >= 20) { 
                 if (stand === 60) currentDimension = currentDimension === 'overworld' ? 'nether' : 'overworld'; 
                 else if (stand === 90) currentDimension = currentDimension === 'overworld' ? 'the_end' : 'overworld';
                 else if (stand === 119) currentDimension = currentDimension === 'overworld' ? 'aether' : 'overworld';
-                teleportTimer = 0; portalOverlay.style.opacity = 0; const tw = worlds[currentDimension]; let found = false; const pb = (stand === 60 ? 60 : (stand === 90 ? 90 : 119)); for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(tw[`${x},${y}`] === pb) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!tw[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; } updateHUD(); saveGame(); 
+                else if (stand === 195) currentDimension = currentDimension === 'overworld' ? 'mystic' : 'overworld';
+                teleportTimer = 0; portalOverlay.style.opacity = 0; const tw = worlds[currentDimension]; let found = false; const pb = (stand === 60 ? 60 : (stand === 90 ? 90 : (stand === 119 ? 119 : 195))); for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(tw[`${x},${y}`] === pb) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!tw[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; } updateHUD(); saveGame(); 
             } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
             if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const tb = world[key]; if (tb && !BLOCK_TYPES[tb].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const b = BLOCK_TYPES[tb]; if (miningProgress >= b.hardness) { if (player.gameMode !== 'creative') { if (b.dropChance !== undefined && Math.random() < b.dropChance) addItemToInventory(b.dropId || b.drop, 1); else if (parseInt(tb) === 57) addItemToInventory(57, 1); else if (tb === 171) { const ent = det[key]; const count = (ent && ent.ready) ? Math.floor(Math.random() * 3) + 2 : 1; addItemToInventory(170, count); } else addItemToInventory(b.drop || parseInt(tb), 1); player.blocksBroken++; updateHUD(); if (player.blocksBroken % 10 === 0) syncLeaderboard(); } delete world[key]; if (blockRotations[currentDimension]) delete blockRotations[currentDimension][key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
             let cs = keys['shift'] ? SPRINT_SPEED : SPEED; if (player.isFlying) cs *= 1.5; const inf = BLOCK_TYPES[world[`${px},${py}`]]?.fluid; const isl = BLOCK_TYPES[world[`${px},${py}`]]?.ladder; if (inf) { cs *= 0.4; if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; if (world[`${px},${py}`] === 6) takeDamage(1.5); }
@@ -3068,6 +3153,8 @@
             else if (e.type === 'chrono_dragon') { ctx.fillStyle = '#4a148c'; ctx.fillRect(0, 10, e.w, e.h - 20); ctx.strokeStyle = '#9c27b0'; ctx.lineWidth = 4; ctx.strokeRect(0, 10, e.w, e.h - 20); }
             else if (e.type === 'piglin') { ctx.fillStyle = '#e1a692'; ctx.fillRect(4, 0, e.w - 8, e.h - 10); ctx.fillStyle = '#fdd835'; ctx.fillRect(2, 10, e.w - 4, e.h - 20); }
             else if (e.type === 'villager') { ctx.fillStyle = '#8d6e63'; ctx.fillRect(0, 12, e.w, e.h - 12); ctx.fillStyle = '#e1a692'; ctx.fillRect(4, 0, e.w - 8, 16); }
+            else if (e.type === 'wisp') { ctx.fillStyle = '#00e5ff'; ctx.beginPath(); ctx.arc(e.w/2, e.h/2, 6, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(e.w/2, e.h/2, 3, 0, Math.PI*2); ctx.fill(); }
+            else if (e.type === 'mage') { ctx.fillStyle = '#4a148c'; ctx.fillRect(0, 12, e.w, e.h - 12); ctx.fillStyle = '#e1a692'; ctx.fillRect(4, 0, e.w - 8, 16); ctx.fillStyle = '#f1c40f'; ctx.fillRect(0, 0, e.w, 4); }
             else if (e.type === 'sheep') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 4, e.w, e.h - 10); ctx.fillStyle = '#e1a692'; ctx.fillRect(e.w - 6, 8, 6, 6); }
             else if (e.type === 'cow') { ctx.fillStyle = '#795548'; ctx.fillRect(0, 4, e.w, e.h - 10); ctx.fillStyle = '#fff'; ctx.fillRect(4, 8, 4, 4); ctx.fillRect(e.w - 8, 12, 4, 4); }
             else if (e.type === 'enderman') { ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, e.w, e.h); ctx.fillStyle = '#ff00ff'; ctx.fillRect(4, 8, 4, 2); ctx.fillRect(e.w - 8, 8, 4, 2); }
@@ -3110,13 +3197,13 @@
                     ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, size, size);
                 } else {
                     ctx.fillRect(tx, ty, size, size);
-                    if (type === 1 || type === 110) { // Grass
+                    if (type === 1 || type === 110 || type === 190) { // Grass
                         ctx.fillStyle = 'rgba(0,0,0,0.05)';
                         for(let i=0; i<3; i++) ctx.fillRect(tx + rng.next()*size*0.8, ty + rng.next()*size*0.8, size*0.2, size*0.2);
-                    } else if (type === 2 || type === 111) { // Dirt
+                    } else if (type === 2 || type === 111 || type === 191) { // Dirt
                         ctx.fillStyle = 'rgba(0,0,0,0.1)';
                         for(let i=0; i<4; i++) ctx.fillRect(tx + rng.next()*size*0.8, ty + rng.next()*size*0.8, size*0.2, size*0.2);
-                    } else if (b.texture === 'stone' || b.texture === 'holystone' || b.texture === 'end_stone' || b.texture === 'obsidian' || b.texture === 'netherrack') {
+                    } else if (b.texture === 'stone' || b.texture === 'holystone' || b.texture === 'end_stone' || b.texture === 'obsidian' || b.texture === 'netherrack' || type === 192) {
                         ctx.fillStyle = 'rgba(0,0,0,0.15)';
                         for(let i=0; i<6; i++) ctx.fillRect(tx + rng.next()*size*0.8, ty + rng.next()*size*0.8, size*0.15, size*0.15);
                         ctx.fillStyle = 'rgba(255,255,255,0.05)';
@@ -3127,7 +3214,7 @@
                             const cx = tx + (i%2)*size*0.5, cy = ty + Math.floor(i/2)*size*0.5;
                             ctx.strokeRect(cx + 1*scale, cy + 1*scale, size*0.5 - 2*scale, size*0.5 - 2*scale);
                         }
-                    } else if (type === 4 || type === 115) { // Wood
+                    } else if (type === 4 || type === 115 || type === 193) { // Wood
                         ctx.fillStyle = 'rgba(0,0,0,0.2)';
                         ctx.fillRect(tx + size*0.2, ty, size*0.1, size);
                         ctx.fillRect(tx + size*0.7, ty, size*0.1, size);
@@ -3159,12 +3246,16 @@
                     }
                     
                     // Animated blocks (lava, etc)
-                    if (b.animated && type !== 119) {
+                    if (b.animated && type !== 119 && type !== 195) {
                         if (type === 60) ctx.fillStyle = `hsl(${280 + Math.sin(time + x + y) * 30}, 70%, 30%)`;
                         else if (type === 90) ctx.fillStyle = `rgb(${10 + Math.sin(time)*5}, 0, ${30 + Math.cos(time)*10})`;
                         else if (type === 6 || type === 62) ctx.fillStyle = `hsl(${15 + Math.sin(time + x * 0.5) * 5}, 90%, ${40 + Math.sin(time + y) * 10}%)`;
                         else if (type === 52) ctx.fillStyle = `hsl(50, 90%, ${70 + Math.sin(time) * 10}%)`;
                         ctx.globalAlpha = 0.4; ctx.fillRect(tx, ty, size, size); ctx.globalAlpha = 1;
+                    }
+                    if (type === 195) {
+                        ctx.fillStyle = `hsl(${280 + Math.sin(time)*20}, 80%, 60%)`;
+                        ctx.globalAlpha = 0.6; ctx.fillRect(tx, ty, size, size); ctx.globalAlpha = 1;
                     }
                 }
             }
