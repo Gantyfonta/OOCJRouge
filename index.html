@@ -1544,9 +1544,18 @@
 
         function loadGame(data) {
             worlds = data.worlds; 
-            blockRotations = data.blockRotations || { overworld: {}, nether: {}, the_end: {}, aether: {} };
-            tileEntities = data.tileEntities || { overworld: {}, nether: {}, the_end: {}, aether: {} };
-            mobs = data.mobs || { overworld: [], nether: [], the_end: [], aether: [] };
+            blockRotations = data.blockRotations || {};
+            tileEntities = data.tileEntities || {};
+            mobs = data.mobs || {};
+            
+            const dims = ['overworld', 'nether', 'the_end', 'aether', 'mystic'];
+            dims.forEach(d => {
+                if (!worlds[d]) worlds[d] = {};
+                if (!blockRotations[d]) blockRotations[d] = {};
+                if (!tileEntities[d]) tileEntities[d] = {};
+                if (!mobs[d]) mobs[d] = [];
+            });
+
             player.x = data.player.x; player.y = data.player.y;
             player.health = data.player.health; player.gameMode = data.player.gameMode || 'survival';
             player.blocksBroken = data.player.blocksBroken || 0;
@@ -1565,10 +1574,10 @@
                 }
                 currentSeedDisplay = seed;
                 worldRNG = new SeededRandom(seed);
-                worlds = { overworld: {}, nether: {}, the_end: {}, aether: {} };
-                blockRotations = { overworld: {}, nether: {}, the_end: {}, aether: {} };
-                tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {} };
-                mobs = { overworld: [], nether: [], the_end: [], aether: [] };
+                worlds = { overworld: {}, nether: {}, the_end: {}, aether: {}, mystic: {} };
+                blockRotations = { overworld: {}, nether: {}, the_end: {}, aether: {}, mystic: {} };
+                tileEntities = { overworld: {}, nether: {}, the_end: {}, aether: {}, mystic: {} };
+                mobs = { overworld: [], nether: [], the_end: [], aether: [], mystic: [] };
                 gameTime = 6000;
                 generateOverworld(); generateNether(); generateEnd(); generateAether(); generateMystic();
             }
@@ -2215,8 +2224,9 @@
 
         function handleCombatInteraction() {
             if (player.dead || inventoryOpen || isPaused) return;
-            const hitX = mouse.x + camera.x; const hitY = mouse.y + camera.y;
             const currentMobs = mobs[currentDimension];
+            if (!currentMobs) return;
+            const hitX = mouse.x + camera.x; const hitY = mouse.y + camera.y;
             const activeItem = hotbarInventory[activeHotbarIndex]; const blockData = activeItem ? BLOCK_TYPES[activeItem.id] : null;
             if (activeItem?.id === 85) return;
             let damage = 2; let knockback = 10;
@@ -2251,6 +2261,7 @@
         function handleWorldInteraction() {
             if (player.dead || inventoryOpen || isPaused) return;
             const world = worlds[currentDimension];
+            if (!world) return;
             const activeItem = hotbarInventory[activeHotbarIndex];
             const hitX = mouse.x + camera.x; const hitY = mouse.y + camera.y;
             const currentMobs = mobs[currentDimension];
@@ -2326,7 +2337,11 @@
         function spawnMob(type, x, y) { const config = MOB_TYPES[type]; mobs[currentDimension].push({ ...config, type, x, y, vx: 0, vy: 0, facing: 1, animTimer: 0, grounded: false, fuse: 0, state: 'idle', timer: 0 }); }
 
         function updateMobs() {
-            if (isLanClient) return; const currentMobs = mobs[currentDimension]; const world = worlds[currentDimension]; const isNight = gameTime > 13000 && gameTime < 23000; const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
+            if (isLanClient) return; 
+            const currentMobs = mobs[currentDimension];
+            const world = worlds[currentDimension];
+            if (!currentMobs || !world) return;
+            const isNight = gameTime > 13000 && gameTime < 23000; const spawnChance = currentDimension === 'overworld' ? (isNight ? 0.08 : 0.02) : 0.05;
             if (currentDimension === 'the_end') { const hasBoss = currentMobs.some(m => m.type === 'chrono_dragon'); if (!hasBoss && Math.random() < 0.01) spawnMob('chrono_dragon', (WORLD_WIDTH/2)*TILE_SIZE, (WORLD_HEIGHT/2 - 10)*TILE_SIZE); }
             if (currentMobs.length < 15 && Math.random() < spawnChance) { const spawnX = player.x + (Math.random() > 0.5 ? 1 : -1) * (width/2 + 200 + Math.random() * 400); const sx = Math.floor(spawnX / TILE_SIZE); if (sx >= 0 && sx < WORLD_WIDTH) { let sy = 0; while(!world[`${sx},${sy}`] && sy < WORLD_HEIGHT) sy++; if (sy < WORLD_HEIGHT) { let types = []; if (currentDimension === 'overworld') { if (isNight) types = ['zombie_pig', 'creeper_clock']; else types = ['chicken']; } else if (currentDimension === 'nether') { types = ['zombie_pig', 'piglin']; } else if (currentDimension === 'mystic') { types = ['wisp', 'mage']; } if (types.length > 0) spawnMob(types[Math.floor(Math.random()*types.length)], spawnX, (sy-2)*TILE_SIZE); } } }
             let bossFound = null; for(let i = currentMobs.length - 1; i >= 0; i--) { const m = currentMobs[i]; const dx = player.x - m.x; const dy = player.y - m.y; const dist = Math.hypot(dx, dy); if (dist > 2000 && m.type !== 'chrono_dragon') { currentMobs.splice(i, 1); continue; } if (m.type === 'chrono_dragon') { bossFound = m; m.timer++; if (m.state === 'idle') { const targetX = (WORLD_WIDTH/2) * TILE_SIZE + Math.cos(m.timer*0.02) * 400; const targetY = (WORLD_HEIGHT/2 - 12) * TILE_SIZE + Math.sin(m.timer*0.05) * 200; m.vx += (targetX - m.x) * 0.01; m.vy += (targetY - m.y) * 0.01; if (m.timer % 100 === 0) m.state = Math.random() < 0.5 ? 'swoop' : 'fire'; } else if (m.state === 'swoop') { m.vx += (player.x - m.x) * 0.04; m.vy += (player.y - m.y) * 0.04; if (dist < 40) { takeDamage(2); m.state = 'idle'; m.timer = 0; m.vy = -15; } if (m.timer > 160) { m.state = 'idle'; m.timer = 0; } } else if (m.state === 'fire') { m.vx *= 0.9; m.vy *= 0.9; if (m.timer % 20 === 0) { const angle = Math.atan2(dy, dx); projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, life: 100, color: '#f1c40f', type: 'enemy' }); } if (m.timer > 100) { m.state = 'idle'; m.timer = 0; } } m.vx *= 0.95; m.vy *= 0.95; m.x += m.vx; m.y += m.vy; m.facing = m.vx > 0 ? 1 : -1; } else { if (m.behavior === 'chase' || m.behavior === 'explode') { if (dist < 400) { m.vx += (dx > 0 ? 1 : -1) * 0.5; m.facing = dx > 0 ? 1 : -1; if (dist < 100 && Math.random() < 0.1 && m.grounded) m.vy = -12; if (m.ranged && dist < 300 && m.timer % 60 === 0) { const angle = Math.atan2(dy, dx); projectiles.push({ x: m.x + m.w/2, y: m.y + m.h/2, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, life: 100, color: '#9c27b0', type: 'enemy' }); } } else { m.vx *= 0.8; } } else if (m.behavior === 'wander') { if (Math.random() < 0.02) m.vx = (Math.random()-0.5) * 10; if (Math.random() < 0.01 && m.grounded) m.vy = -12; } if (m.behavior === 'explode' && dist < 60) { m.fuse++; if (m.fuse >= 40) { const explodeDist = Math.hypot(player.x - m.x, player.y - m.y); if(explodeDist < 120) takeDamage(3); currentMobs.splice(i, 1); continue; } } else { m.fuse = Math.max(0, m.fuse - 1); } if (m.damage > 0 && dist < 40 && player.invuln <= 0) takeDamage(m.damage); m.vx *= 0.8; m.vy += GRAVITY; m.x += m.vx; resolveEntityCollision(m, 'x'); m.y += m.vy; m.grounded = false; resolveEntityCollision(m, 'y'); m.animTimer += Math.abs(m.vx) * 0.1; m.timer++; } }
@@ -2717,6 +2732,7 @@
 
         function updateRedstone() {
             const world = worlds[currentDimension];
+            if (!world) return;
             const entities = tileEntities[currentDimension];
             for (let key in world) {
                 if (world[key] === 34) {
@@ -2806,6 +2822,7 @@
             if (!gameStarted || player.dead || isPaused) return; if (player.invuln > 0) player.invuln--; gameTime = (gameTime + 2) % DAY_LENGTH;
             const hours = Math.floor((gameTime / DAY_LENGTH) * 24); const mins = Math.floor(((gameTime % (DAY_LENGTH / 24)) / (DAY_LENGTH / 24)) * 60); const tit = `${(hours % 12 || 12).toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`; if (timeIndicatorEl.innerText !== tit) timeIndicatorEl.innerText = tit;
             const world = worlds[currentDimension]; 
+            if (!world) return;
             if (!isLanClient) { 
                 updateMobs(); 
                 const hasFallingCarrot = projectiles.some(p => p.type === 'falling_carrot');
@@ -3045,7 +3062,10 @@
             let ct = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${Math.floor(player.y/TILE_SIZE)}`; if (debugMode) ct += ` | Seed: ${currentSeedDisplay}`; document.getElementById('coords').innerText = ct;
         }
 
-        function resolveCollision(axis) { const world = worlds[currentDimension]; const x1 = Math.floor(player.x / TILE_SIZE), x2 = Math.floor((player.x + player.w - 1) / TILE_SIZE); const y1 = Math.floor(player.y / TILE_SIZE), y2 = Math.floor((player.y + player.h - 1) / TILE_SIZE); for (let x = x1; x <= x2; x++) { for (let y = y1; y <= y2; y++) { const type = world[`${x},${y}`]; if (type) { const block = BLOCK_TYPES[type]; if (block.hazard) takeDamage(1); if (block.teleport || block.fluid || block.ladder || block.nonSolid) continue; if (player.isFlying) continue; if (axis === 'x') { if (player.vx > 0) player.x = x * TILE_SIZE - player.w; else if (player.vx < 0) player.x = (x + 1) * TILE_SIZE; player.vx = 0; } else { if (player.vy > 0) { player.y = y * TILE_SIZE - player.h; player.grounded = true; } else if (player.vy < 0) { player.y = (y + 1) * TILE_SIZE; } player.vy = 0; } } } } }
+        function resolveCollision(axis) { 
+            const world = worlds[currentDimension]; 
+            if (!world) return;
+            const x1 = Math.floor(player.x / TILE_SIZE), x2 = Math.floor((player.x + player.w - 1) / TILE_SIZE); const y1 = Math.floor(player.y / TILE_SIZE), y2 = Math.floor((player.y + player.h - 1) / TILE_SIZE); for (let x = x1; x <= x2; x++) { for (let y = y1; y <= y2; y++) { const type = world[`${x},${y}`]; if (type) { const block = BLOCK_TYPES[type]; if (block.hazard) takeDamage(1); if (block.teleport || block.fluid || block.ladder || block.nonSolid) continue; if (player.isFlying) continue; if (axis === 'x') { if (player.vx > 0) player.x = x * TILE_SIZE - player.w; else if (player.vx < 0) player.x = (x + 1) * TILE_SIZE; player.vx = 0; } else { if (player.vy > 0) { player.y = y * TILE_SIZE - player.h; player.grounded = true; } else if (player.vy < 0) { player.y = (y + 1) * TILE_SIZE; } player.vy = 0; } } } } }
 
         const textures = {};
         const textureFiles = {
@@ -3163,7 +3183,10 @@
         }
 
         function drawBlock(x, y, type, scale = 1, offsetX = 0, offsetY = 0, rotIdx = 0) {
-            const b = BLOCK_TYPES[type]; if(!b) return; const size = TILE_SIZE * scale; const tx = x * TILE_SIZE + offsetX; const ty = y * TILE_SIZE + offsetY; const time = Date.now() / 300; const world = worlds[currentDimension];
+            const b = BLOCK_TYPES[type]; if(!b) return; 
+            const world = worlds[currentDimension];
+            if (!world) return;
+            const size = TILE_SIZE * scale; const tx = x * TILE_SIZE + offsetX; const ty = y * TILE_SIZE + offsetY; const time = Date.now() / 300; 
             const det = tileEntities[currentDimension];
             const rng = new SeededRandom(x * 1337 + y * 42);
             ctx.save(); 
