@@ -404,12 +404,32 @@
         /* Blueprint View Styling */
         .blueprint-section { display: flex; flex-direction: column; align-items: center; gap: 15px; padding: 20px; background: #8b8b8b; border: 4px solid #373737; width: 100%; }
         #blueprint-input { width: 100%; font-size: 8px; background: #333; color: #f1c40f; padding: 12px; border: 4px solid #111; }
+        #effects-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .effect-icon {
+            padding: 8px 12px;
+            border: 2px solid white;
+            font-size: 10px;
+            color: white;
+            text-shadow: 1px 1px black;
+            background: rgba(0,0,0,0.5);
+            min-width: 100px;
+        }
     </style>
 <link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+        <div id="effects-container"></div>
         <div id="portal-overlay"></div>
         <div id="held-item-cursor"></div>
         <div id="item-tooltip"></div>
@@ -843,10 +863,15 @@
             191: { name: 'Mystic Dirt', color: '#4a148c', stroke: '#311b92', hardness: 12, tool: 'shovel', texPos: {x: 1, y: 5} },
             192: { name: 'Mystic Stone', color: '#311b92', stroke: '#1a237e', hardness: 60, tool: 'pickaxe', texture: 'stone', requiredTier: 2, texPos: {x: 2, y: 5} },
             193: { name: 'Mystic Log', color: '#1a237e', stroke: '#0d47a1', hardness: 35, tool: 'axe', texPos: {x: 3, y: 5} },
+            210: { name: 'Crawler', color: '#455a64', stroke: '#263238', hardness: 60, tool: 'pickaxe', requiredTier: 2 },
             194: { name: 'Mystic Leaves', color: '#e1bee7', stroke: '#ba68c8', hardness: 5, texPos: {x: 4, y: 5} },
             195: { name: 'Mystic Portal', color: '#ba68c8', stroke: '#9c27b0', hardness: 999, animated: true, teleport: true, toDimension: 'mystic', texPos: {x: 5, y: 5} },
             196: { name: 'Magic Wand', color: '#f1c40f', stroke: '#9c27b0', item: true, toolType: 'wand' },
-            197: { name: 'Mana Shard', color: '#00e5ff', item: true, type: 'gem' }
+            197: { name: 'Mana Shard', color: '#00e5ff', item: true, type: 'gem' },
+            200: { name: 'Empty Bottle', color: '#e0f7fa', stroke: '#81d4fa', item: true },
+            201: { name: 'Speed Potion', color: '#81d4fa', stroke: '#0288d1', item: true, type: 'potion', effect: 'speed', duration: 60 * 20 },
+            202: { name: 'Jump Potion', color: '#a5d6a7', stroke: '#388e3c', item: true, type: 'potion', effect: 'jump', duration: 60 * 20 },
+            203: { name: 'Night Vision Potion', color: '#9575cd', stroke: '#512da8', item: true, type: 'potion', effect: 'night_vision', duration: 120 * 20 }
         };
 
         const MOB_TYPES = {
@@ -918,6 +943,7 @@
             { pattern: [[null, 32, null], [32, 34, 32], [null, 32, null]], result: 11, amount: 1 }, // Clock
             { pattern: [[31, null, 31], [null, 31, null]], result: 64, amount: 1 }, // Bucket
             { pattern: [[31, 11, 31], [31, 31, 31]], result: 100, amount: 1 }, // Chrono-Blueprint Recipe
+            { pattern: [[109], [101], [31]], result: 210, amount: 1 }, // Crawler: Slime + Piston + Iron
             { pattern: [[10, 10, 10], [7, 31, 7], [7, 34, 7]], result: 101, amount: 1 }, // Piston Recipe
             { pattern: [[34, 34, 34], [34, 34, 34], [34, 34, 34]], result: 102, amount: 1 }, // Redstone Block
             { pattern: [[102]], result: 34, amount: 9 }, // Redstone Block back to Dust
@@ -1061,7 +1087,8 @@
             blocksBroken: 0,
             itemsCrafted: 0,
             hasPickedUpCarrot: false,
-            armor: [null, null, null, null] // helmet, chestplate, leggings, boots
+            armor: [null, null, null, null], // helmet, chestplate, leggings, boots
+            effects: {}
         };
         
         let mainInventory = new Array(27).fill(null);
@@ -2272,7 +2299,18 @@
                 projectiles.push({ x: player.x + player.w/2, y: player.y + player.h/2, vx: Math.cos(angle)*15, vy: Math.sin(angle)*15, life: 100, color: '#00e5ff', type: 'spell', damage: 10 });
                 return;
             }
-            const blockData = BLOCK_TYPES[activeItem?.id]; if (blockData?.type === 'food') { player.health = Math.min(MAX_HEALTH, player.health + (blockData.heal || 2)); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; updateHeartsUI(); updateHUD(); return; }
+            const blockData = BLOCK_TYPES[activeItem?.id]; 
+            if (blockData?.type === 'food') { player.health = Math.min(MAX_HEALTH, player.health + (blockData.heal || 2)); activeItem.count--; if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null; updateHeartsUI(); updateHUD(); return; }
+            if (blockData?.type === 'potion') {
+                const effect = blockData.effect;
+                const duration = blockData.duration || 60 * 20;
+                player.effects[effect] = (player.effects[effect] || 0) + duration;
+                activeItem.count--;
+                if (activeItem.count <= 0) hotbarInventory[activeHotbarIndex] = null;
+                addItemToInventory(200, 1); // Empty bottle back
+                updateHUD();
+                return;
+            }
             const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`;
             
             if (mouse.rightDown) {
@@ -2372,6 +2410,17 @@
         }
 
         function updateHUD() { 
+            const effectsContainer = document.getElementById('effects-container');
+            if (effectsContainer) {
+                effectsContainer.innerHTML = '';
+                for (let effect in player.effects) {
+                    const div = document.createElement('div');
+                    div.className = 'effect-icon';
+                    div.style.borderColor = effect === 'speed' ? '#81d4fa' : (effect === 'jump' ? '#a5d6a7' : '#9575cd');
+                    div.innerText = effect.toUpperCase().replace('_', ' ') + ': ' + Math.ceil(player.effects[effect] / 20) + 's';
+                    effectsContainer.appendChild(div);
+                }
+            }
             const hud = document.getElementById('hotbar-hud'); 
             hud.innerHTML = ''; 
             for (let i = 0; i < 9; i++) { 
@@ -2820,6 +2869,20 @@
 
         function update() {
             if (!gameStarted || player.dead || isPaused) return; if (player.invuln > 0) player.invuln--; gameTime = (gameTime + 2) % DAY_LENGTH;
+            
+            // Update effects
+            let effectsChanged = false;
+            for (let effect in player.effects) {
+                if (player.effects[effect] > 0) {
+                    player.effects[effect]--;
+                    effectsChanged = true;
+                } else {
+                    delete player.effects[effect];
+                    effectsChanged = true;
+                }
+            }
+            if (effectsChanged) updateHUD();
+
             const hours = Math.floor((gameTime / DAY_LENGTH) * 24); const mins = Math.floor(((gameTime % (DAY_LENGTH / 24)) / (DAY_LENGTH / 24)) * 60); const tit = `${(hours % 12 || 12).toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`; if (timeIndicatorEl.innerText !== tit) timeIndicatorEl.innerText = tit;
             const world = worlds[currentDimension]; 
             if (!world) return;
@@ -2946,7 +3009,51 @@
                     } else if (!isPowered) ent.powered = false;
                 });
                 const pistons = Object.keys(world).filter(k => world[k] === 101 || world[k] === 106);
+                const crawlers = Object.keys(world).filter(k => world[k] === 210);
                 const dirs = [{dx:0, dy:-1}, {dx:1, dy:0}, {dx:0, dy:1}, {dx:-1, dy:0}];
+                
+                crawlers.forEach(ck => {
+                    const [wx, wy] = ck.split(',').map(Number);
+                    if (!det[ck]) det[ck] = { powered: false };
+                    let isPowered = false;
+                    const neighbors = [[wx, wy-1], [wx, wy+1], [wx-1, wy], [wx+1, wy]];
+                    for (const [nx, ny] of neighbors) {
+                        const nk = `${nx},${ny}`;
+                        if (world[nk] === 102) { isPowered = true; break; }
+                        if ((world[nk] === 105 || world[nk] === 107) && det[nk]?.active) { isPowered = true; break; }
+                        if (world[nk] === 174 && det[nk]?.pulseTimer > 0) { isPowered = true; break; }
+                        if (world[nk] === 34 && det[nk]?.power > 0) { isPowered = true; break; }
+                    }
+                    if (isPowered && !det[ck].powered) {
+                        const rot = (blockRotations[currentDimension] && blockRotations[currentDimension][ck]) || 0;
+                        const dir = dirs[rot];
+                        const nextPos = `${wx + dir.dx},${wy + dir.dy}`;
+                        let blocksToMove = findMovableGroup(wx + dir.dx, wy + dir.dy, dir.dx, dir.dy, world, wx, wy);
+                        if (blocksToMove !== null) {
+                            blocksToMove.sort((a, b) => (Math.abs(b.x - wx) + Math.abs(b.y - wy)) - (Math.abs(a.x - wx) + Math.abs(a.y - wy)));
+                            blocksToMove.forEach(b => {
+                                const oldK = `${b.x},${b.y}`; const nk = `${b.x + dir.dx},${b.y + dir.dy}`;
+                                world[nk] = b.id; delete world[oldK];
+                                if (det[oldK]) { det[nk] = det[oldK]; delete det[oldK]; }
+                                if (blockRotations[currentDimension][oldK] !== undefined) { blockRotations[currentDimension][nk] = blockRotations[currentDimension][oldK]; delete blockRotations[currentDimension][oldK]; }
+                            });
+                            const oldCrawlerK = ck;
+                            const newCrawlerK = nextPos;
+                            world[newCrawlerK] = 210;
+                            delete world[oldCrawlerK];
+                            det[newCrawlerK] = { powered: true };
+                            delete det[oldCrawlerK];
+                            if (blockRotations[currentDimension]) {
+                                blockRotations[currentDimension][newCrawlerK] = rot;
+                                delete blockRotations[currentDimension][oldCrawlerK];
+                            }
+                            broadcastWorldChange();
+                        }
+                    } else if (!isPowered) {
+                        if (det[ck]) det[ck].powered = false;
+                    }
+                });
+
                 pistons.forEach(pk => {
                     const [wx, wy] = pk.split(',').map(Number);
                     let isPowered = false;
@@ -3057,8 +3164,17 @@
                 teleportTimer = 0; portalOverlay.style.opacity = 0; const tw = worlds[currentDimension]; let found = false; const pb = (stand === 60 ? 60 : (stand === 90 ? 90 : (stand === 119 ? 119 : 195))); for(let x=0; x<WORLD_WIDTH && !found; x++) for(let y=0; y<WORLD_HEIGHT && !found; y++) if(tw[`${x},${y}`] === pb) { player.x = x * TILE_SIZE; player.y = (y-1) * TILE_SIZE; found = true; } if(!found) { player.x = (WORLD_WIDTH/2) * TILE_SIZE; let sy = 0; while(!tw[`${Math.floor(player.x/TILE_SIZE)},${sy}`] && sy < WORLD_HEIGHT) sy++; player.y = (sy - 2) * TILE_SIZE; } updateHUD(); saveGame(); 
             } } else { teleportTimer = 0; portalOverlay.style.opacity = 0; }
             if (mouse.down) { const wx = Math.floor((mouse.x + camera.x) / TILE_SIZE); const wy = Math.floor((mouse.y + camera.y) / TILE_SIZE); const key = `${wx},${wy}`; const tb = world[key]; if (tb && !BLOCK_TYPES[tb].fluid) { if (miningTarget?.key === key) { miningProgress += getMiningSpeed(); const b = BLOCK_TYPES[tb]; if (miningProgress >= b.hardness) { if (player.gameMode !== 'creative') { if (b.dropChance !== undefined && Math.random() < b.dropChance) addItemToInventory(b.dropId || b.drop, 1); else if (parseInt(tb) === 57) addItemToInventory(57, 1); else if (tb === 171) { const ent = det[key]; const count = (ent && ent.ready) ? Math.floor(Math.random() * 3) + 2 : 1; addItemToInventory(170, count); } else addItemToInventory(b.drop || parseInt(tb), 1); player.blocksBroken++; updateHUD(); if (player.blocksBroken % 10 === 0) syncLeaderboard(); } delete world[key]; if (blockRotations[currentDimension]) delete blockRotations[currentDimension][key]; miningTarget = null; miningProgress = 0; broadcastWorldChange(); } } else { miningTarget = { wx, wy, key }; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; } } else { miningTarget = null; miningProgress = 0; }
-            let cs = keys['shift'] ? SPRINT_SPEED : SPEED; if (player.isFlying) cs *= 1.5; const inf = BLOCK_TYPES[world[`${px},${py}`]]?.fluid; const isl = BLOCK_TYPES[world[`${px},${py}`]]?.ladder; if (inf) { cs *= 0.4; if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; if (world[`${px},${py}`] === 6) takeDamage(1.5); }
-            if (keys['a'] || keys['arrowleft']) { player.vx -= cs; player.facing = -1; player.animTimer += 0.8; } if (keys['d'] || keys['arrowright']) { player.vx += cs; player.facing = 1; player.animTimer += 0.8; } player.vx *= FRICTION; player.x += player.vx; resolveCollision('x'); if (isl) { player.vy = 4; if (keys['w'] || keys[' '] || keys['arrowup']) player.vy = -7; player.vx *= 0.7; player.grounded = true; } else if (!player.isFlying && !inf) { if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = JUMP; player.grounded = false; player.squash = 1.3; } player.vy += GRAVITY; } else if (player.isFlying) { if (keys['w'] || keys[' ']) player.vy = -20; else if (keys['s'] || keys['shift']) player.vy = 20; else player.vy *= 0.5; } player.y += player.vy; player.squash += (1 - player.squash) * 0.45; player.grounded = false; if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y'); camera.x += (player.x - width/2 - camera.x) * 0.35; camera.y += (player.y - height/2 - camera.y) * 0.35; 
+            let cs = keys['shift'] ? SPRINT_SPEED : SPEED; 
+            if (player.effects.speed) cs *= 1.5;
+            if (player.isFlying) cs *= 1.5; 
+            const inf = BLOCK_TYPES[world[`${px},${py}`]]?.fluid; 
+            const isl = BLOCK_TYPES[world[`${px},${py}`]]?.ladder; 
+            if (inf) { cs *= 0.4; if (keys['w'] || keys[' ']) player.vy = -6; else player.vy *= 0.8; if (world[`${px},${py}`] === 6) takeDamage(1.5); }
+            
+            let cj = JUMP;
+            if (player.effects.jump) cj *= 1.3;
+
+            if (keys['a'] || keys['arrowleft']) { player.vx -= cs; player.facing = -1; player.animTimer += 0.8; } if (keys['d'] || keys['arrowright']) { player.vx += cs; player.facing = 1; player.animTimer += 0.8; } player.vx *= FRICTION; player.x += player.vx; resolveCollision('x'); if (isl) { player.vy = 4; if (keys['w'] || keys[' '] || keys['arrowup']) player.vy = -7; player.vx *= 0.7; player.grounded = true; } else if (!player.isFlying && !inf) { if ((keys['w'] || keys[' '] || keys['arrowup']) && player.grounded) { player.vy = cj; player.grounded = false; player.squash = 1.3; } player.vy += GRAVITY; } else if (player.isFlying) { if (keys['w'] || keys[' ']) player.vy = -20; else if (keys['s'] || keys['shift']) player.vy = 20; else player.vy *= 0.5; } player.y += player.vy; player.squash += (1 - player.squash) * 0.45; player.grounded = false; if (player.y + player.h > WORLD_HEIGHT * TILE_SIZE) takeDamage(10); resolveCollision('y'); camera.x += (player.x - width/2 - camera.x) * 0.35; camera.y += (player.y - height/2 - camera.y) * 0.35; 
             let ct = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${Math.floor(player.y/TILE_SIZE)}`; if (debugMode) ct += ` | Seed: ${currentSeedDisplay}`; document.getElementById('coords').innerText = ct;
         }
 
@@ -3248,6 +3364,17 @@
                         ctx.moveTo(tx, ty + size*0.33); ctx.lineTo(tx + size, ty + size*0.33);
                         ctx.moveTo(tx, ty + size*0.66); ctx.lineTo(tx + size, ty + size*0.66);
                         ctx.stroke();
+                    } else if (type === 210) { // Crawler
+                        ctx.fillStyle = '#455a64'; ctx.fillRect(tx, ty, size, size);
+                        ctx.strokeStyle = '#00e676'; ctx.lineWidth = 2 * scale;
+                        ctx.strokeRect(tx + 2*scale, ty + 2*scale, size - 4*scale, size - 4*scale);
+                        ctx.fillStyle = '#00e676';
+                        ctx.beginPath();
+                        ctx.moveTo(tx + size*0.5, ty + size*0.2);
+                        ctx.lineTo(tx + size*0.8, ty + size*0.5);
+                        ctx.lineTo(tx + size*0.2, ty + size*0.5);
+                        ctx.fill();
+                        ctx.fillRect(tx + size*0.4, ty + size*0.5, size*0.2, size*0.3);
                     } else if (type === 171) { // Carrot Crop
                         const ent = det[`${x},${y}`];
                         const progress = ent ? (1 - ent.timer / (30 * TICKS_PER_SECOND)) : 0;
@@ -3310,6 +3437,7 @@
         }
 
         function getSkyColor() { 
+            if (player.effects.night_vision) return '#87ceeb';
             if (currentDimension === 'nether') return '#1a0505'; 
             if (currentDimension === 'the_end') return '#0b001a'; 
             if (currentDimension === 'aether') return '#fff9c4';
